@@ -2,7 +2,10 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import type { Room, Session, Teacher } from "@/shared/types";
+import type { Room, Session, Teacher, Template } from "@/shared/types";
+import { EVENT_KINDS, KIND_META } from "@/shared/types";
+import { endAfter, isTeachingKind } from "@/lib/templates";
+import { TemplatePicker } from "@/components/TemplatePicker";
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
 import { addDays, formatDayMonth, minutesToTime, startOfWeek, timeToMinutes, today } from "@/lib/date";
@@ -20,14 +23,24 @@ export default function CalendarPage() {
   const [roomId, setRoomId] = useState("");
   const [dialog, setDialog] = useState<DialogState>(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [kind, setKind] = useState("");
 
   const weekEnd = addDays(weekStart, 6);
 
   const teachersRes = useResource(api.teachers.list, [] as Teacher[]);
   const roomsRes = useResource(api.rooms.list, [] as Room[]);
+  const { data: templates } = useResource(api.templates.list, [] as Template[]);
   const fetchSessions = useCallback(
-    () => api.sessions.list({ from: weekStart, to: weekEnd, teacherId: teacherId || undefined, roomId: roomId || undefined }),
-    [weekStart, weekEnd, teacherId, roomId],
+    () =>
+      api.sessions.list({
+        from: weekStart,
+        to: weekEnd,
+        teacherId: teacherId || undefined,
+        roomId: roomId || undefined,
+        kind: kind || undefined,
+      }),
+    [weekStart, weekEnd, teacherId, roomId, kind],
   );
   const { data: sessions, error: sessionsError, reload: reloadSessions } = useResource(fetchSessions, [] as Session[]);
   const teachers = teachersRes.data;
@@ -37,17 +50,44 @@ export default function CalendarPage() {
   const stats = useMemo(() => {
     const active = sessions.filter((s) => s.status === "scheduled");
     const minutes = active.reduce((sum, s) => sum + timeToMinutes(s.end_time) - timeToMinutes(s.start_time), 0);
+    const teaching = active.filter((s) => isTeachingKind(s.kind)).length;
     return {
-      count: active.length,
+      teaching,
+      events: active.length - teaching,
       hours: Math.round((minutes / 60) * 10) / 10,
       cancelled: sessions.length - active.length,
-      teachers: new Set(active.map((s) => s.teacher_id)).size,
     };
   }, [sessions]);
 
   function openNew(date = today(), start = "07:00") {
     const end = minutesToTime(Math.min(timeToMinutes(start) + 120, DAY_END));
     setDialog({ session: null, draft: { date, start_time: start, end_time: end, teacher_id: teacherId, room_id: roomId } });
+  }
+
+  /** Ngày mặc định khi đặt lịch từ nút: hôm nay nếu đang xem tuần này, ngược lại là Thứ 2 của tuần đang xem. */
+  function defaultDate() {
+    const t = today();
+    return t >= weekStart && t <= weekEnd ? t : weekStart;
+  }
+
+  function openFromTemplate(t: Template) {
+    const start = t.start_time ?? "08:00";
+    setPickerOpen(false);
+    setDialog({
+      session: null,
+      draft: {
+        date: defaultDate(),
+        start_time: start,
+        end_time: endAfter(start, t.duration_minutes),
+        kind: t.kind,
+        title: t.title ?? undefined,
+        note: t.note ?? undefined,
+        repeat_weeks: t.repeat_weeks,
+        teacher_id: t.teacher_id ?? teacherId,
+        room_id: t.room_id ?? roomId,
+        template_id: t.id,
+      },
+    });
   }
 
   function openFromVoice(parsed: ParsedCommand, transcript: string) {
@@ -83,8 +123,11 @@ export default function CalendarPage() {
             <Button onClick={() => setVoiceOpen(true)} disabled={!ready} title="Đặt lịch bằng giọng nói">
               🎤 Giọng nói
             </Button>
-            <Button variant="primary" onClick={() => openNew()} disabled={!ready}>
-              + Đặt lịch giảng
+            <Button onClick={() => setPickerOpen(true)} disabled={!ready || templates.length === 0}>
+              📋 Từ mẫu
+            </Button>
+            <Button variant="primary" onClick={() => openNew(defaultDate(), "07:00")} disabled={!ready}>
+              + Đặt lịch
             </Button>
           </>
         }
@@ -92,9 +135,9 @@ export default function CalendarPage() {
 
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Buổi giảng", value: stats.count },
+          { label: "Buổi giảng", value: stats.teaching },
+          { label: "Họp & sự kiện", value: stats.events },
           { label: "Tổng giờ", value: stats.hours },
-          { label: "Giảng viên", value: stats.teachers },
           { label: "Đã huỷ", value: stats.cancelled },
         ].map((s) => (
           <GlassCard key={s.label} className="px-4 py-3">
@@ -120,6 +163,14 @@ export default function CalendarPage() {
             {teachers.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
+              </option>
+            ))}
+          </Select>
+          <Select className="sm:w-44" value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Lọc theo loại lịch">
+            <option value="">Tất cả loại lịch</option>
+            {EVENT_KINDS.map((k) => (
+              <option key={k} value={k}>
+                {KIND_META[k].icon} {KIND_META[k].label}
               </option>
             ))}
           </Select>
@@ -160,13 +211,16 @@ export default function CalendarPage() {
         <VoiceCommand teachers={teachers} rooms={rooms} onClose={() => setVoiceOpen(false)} onSubmit={openFromVoice} />
       )}
 
+      {pickerOpen && <TemplatePicker templates={templates} onClose={() => setPickerOpen(false)} onPick={openFromTemplate} />}
+
       {dialog && (
         <SessionDialog
-          key={dialog.session?.id ?? "new"}
+          key={dialog.session?.id ?? `new-${dialog.draft?.template_id ?? ""}-${dialog.draft?.date}-${dialog.draft?.start_time}`}
           session={dialog.session}
           draft={dialog.draft}
           teachers={teachers}
           rooms={rooms}
+          templates={templates}
           onClose={() => setDialog(null)}
           onSaved={() => {
             setDialog(null);

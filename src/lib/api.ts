@@ -7,6 +7,8 @@ import type {
   SessionInput,
   Teacher,
   TeacherInput,
+  Template,
+  TemplateInput,
 } from "@/shared/types";
 
 export class ApiRequestError extends Error {
@@ -51,11 +53,18 @@ export const api = {
     update: (id: string, input: RoomInput) => request<Room>(`/rooms/${id}`, send("PUT", input)),
     remove: (id: string) => request<void>(`/rooms/${id}`, send("DELETE")),
   },
+  templates: {
+    list: () => request<Template[]>("/templates"),
+    create: (input: TemplateInput) => request<Template>("/templates", send("POST", input)),
+    update: (id: string, input: Partial<TemplateInput>) => request<Template>(`/templates/${id}`, send("PUT", input)),
+    remove: (id: string) => request<void>(`/templates/${id}`, send("DELETE")),
+  },
   sessions: {
-    list: (params: { from: string; to: string; teacherId?: string; roomId?: string }) => {
+    list: (params: { from: string; to: string; teacherId?: string; roomId?: string; kind?: string }) => {
       const q = new URLSearchParams({ from: params.from, to: params.to });
       if (params.teacherId) q.set("teacherId", params.teacherId);
       if (params.roomId) q.set("roomId", params.roomId);
+      if (params.kind) q.set("kind", params.kind);
       return request<Session[]>(`/sessions?${q}`);
     },
     create: (input: SessionInput) => request<Session[]>("/sessions", send("POST", input)),

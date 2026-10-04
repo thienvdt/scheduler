@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { InstallButton } from "./InstallButton";
 import { cn } from "./ui";
 
 const links = [
-  { href: "/", label: "Lịch giảng" },
+  { href: "/", label: "Lịch" },
   { href: "/teachers/", label: "Giảng viên" },
   { href: "/rooms/", label: "Phòng học" },
+  { href: "/templates/", label: "Mẫu lịch" },
 ];
 
 export function Nav() {
@@ -23,7 +25,7 @@ export function Nav() {
           </span>
           <span>Lịch Giảng</span>
         </Link>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap items-center gap-1">
           {links.map((l) => (
             <Link
               key={l.href}
@@ -36,6 +38,9 @@ export function Nav() {
               {l.label}
             </Link>
           ))}
+          <span className="ml-1">
+            <InstallButton />
+          </span>
         </div>
       </nav>
     </header>

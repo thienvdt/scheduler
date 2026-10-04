@@ -2,6 +2,7 @@
 
 import type { MouseEvent } from "react";
 import type { Session } from "@/shared/types";
+import { KIND_META } from "@/shared/types";
 import { addDays, formatDayMonth, minutesToTime, timeToMinutes, today, WEEKDAYS } from "@/lib/date";
 import { cn } from "./ui";
 
@@ -149,9 +150,12 @@ export function WeekCalendar({
                         background: `linear-gradient(135deg, ${color}55, ${color}25)`,
                         borderColor: `${color}90`,
                       }}
-                      title={`${s.title} • ${s.start_time}–${s.end_time} • ${s.teacher_name} • ${s.room_name}`}
+                      title={`${KIND_META[s.kind]?.label ?? ""}: ${s.title} • ${s.start_time}–${s.end_time} • ${s.teacher_name} • ${s.room_name}`}
                     >
-                      <div className="truncate font-semibold">{s.title}</div>
+                      <div className="truncate font-semibold">
+                        {s.kind !== "lecture" && <span className="mr-1">{KIND_META[s.kind]?.icon}</span>}
+                        {s.title}
+                      </div>
                       <div className="truncate text-white/80">
                         {s.start_time}–{s.end_time}
                       </div>

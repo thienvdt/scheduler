@@ -7,8 +7,11 @@ import type {
   SessionStatus,
   Teacher,
   TeacherInput,
+  Template,
+  TemplateInput,
+  EventKind,
 } from "../src/shared/types";
-import { MAX_REPEAT_WEEKS } from "../src/shared/types";
+import { EVENT_KINDS, MAX_REPEAT_WEEKS } from "../src/shared/types";
 import { isValidDate, isValidTime, weeklyDates } from "./time";
 
 export interface Env {
@@ -151,9 +154,94 @@ async function deleteReferenced(env: Env, table: "teachers" | "rooms", id: strin
     .bind(id)
     .first<{ n: number }>();
   if (used && used.n > 0) {
-    throw new HttpError(409, `Không thể xoá ${label} đang có ${used.n} buổi giảng. Hãy xoá hoặc chuyển các buổi đó trước.`);
+    throw new HttpError(409, `Không thể xoá ${label} đang có ${used.n} lịch. Hãy xoá hoặc chuyển các buổi đó trước.`);
   }
-  await env.DB.prepare(`DELETE FROM ${table} WHERE id = ?`).bind(id).run();
+  // Mẫu lịch chỉ tham chiếu mặc định → bỏ tham chiếu thay vì chặn xoá
+  await env.DB.batch([
+    env.DB.prepare(`UPDATE templates SET ${column} = NULL WHERE ${column} = ?`).bind(id),
+    env.DB.prepare(`DELETE FROM ${table} WHERE id = ?`).bind(id),
+  ]);
+  return new Response(null, { status: 204 });
+}
+
+function parseKind(value: unknown, fallback: EventKind): EventKind {
+  if (value === undefined || value === null || value === "") return fallback;
+  if (!EVENT_KINDS.includes(value as EventKind)) throw new HttpError(400, "Loại lịch không hợp lệ");
+  return value as EventKind;
+}
+
+// ---------- Mẫu lịch ----------
+
+function parseTemplate(body: Record<string, unknown>): Required<TemplateInput> {
+  const duration = Number(body.duration_minutes);
+  if (!Number.isInteger(duration) || duration < 5 || duration > 24 * 60) {
+    throw new HttpError(400, "Thời lượng phải từ 5 đến 1440 phút");
+  }
+  const start = optString(body.start_time, "start_time", 5);
+  if (start !== null && !isValidTime(start)) throw new HttpError(400, "Giờ bắt đầu không hợp lệ (HH:MM)");
+  const repeat = body.repeat_weeks === undefined || body.repeat_weeks === null ? 1 : Number(body.repeat_weeks);
+  if (!Number.isInteger(repeat) || repeat < 1 || repeat > MAX_REPEAT_WEEKS) {
+    throw new HttpError(400, `Số tuần lặp phải từ 1 đến ${MAX_REPEAT_WEEKS}`);
+  }
+  const sortOrder = body.sort_order === undefined || body.sort_order === null ? 1000 : Number(body.sort_order);
+  if (!Number.isInteger(sortOrder)) throw new HttpError(400, "Thứ tự không hợp lệ");
+  return {
+    name: reqString(body.name, "name"),
+    kind: parseKind(body.kind, "meeting"),
+    icon: optString(body.icon, "icon", 16),
+    title: optString(body.title, "title", 200),
+    duration_minutes: duration,
+    start_time: start,
+    repeat_weeks: repeat,
+    teacher_id: optString(body.teacher_id, "teacher_id"),
+    room_id: optString(body.room_id, "room_id"),
+    note: optString(body.note, "note", 2000),
+    sort_order: sortOrder,
+  };
+}
+
+async function ensureTemplateRefs(env: Env, t: Required<TemplateInput>) {
+  if (t.teacher_id && !(await exists(env, "teachers", t.teacher_id))) throw new HttpError(400, "Giảng viên không tồn tại");
+  if (t.room_id && !(await exists(env, "rooms", t.room_id))) throw new HttpError(400, "Phòng không tồn tại");
+}
+
+async function listTemplates(env: Env) {
+  const { results } = await env.DB.prepare(
+    "SELECT * FROM templates ORDER BY sort_order, name COLLATE NOCASE",
+  ).all<Template>();
+  return json(results);
+}
+
+async function createTemplate(env: Env, request: Request) {
+  const t = parseTemplate(await readBody(request));
+  await ensureTemplateRefs(env, t);
+  const id = crypto.randomUUID();
+  await env.DB.prepare(
+    `INSERT INTO templates (id, name, kind, icon, title, duration_minutes, start_time, repeat_weeks, teacher_id, room_id, note, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(id, t.name, t.kind, t.icon, t.title, t.duration_minutes, t.start_time, t.repeat_weeks, t.teacher_id, t.room_id, t.note, t.sort_order)
+    .run();
+  return json(await getById<Template>(env, "templates", id), 201);
+}
+
+async function updateTemplate(env: Env, request: Request, id: string) {
+  const existing = await getById<Template>(env, "templates", id);
+  if (!existing) throw new HttpError(404, "Không tìm thấy mẫu lịch");
+  const t = parseTemplate({ ...existing, ...(await readBody(request)) });
+  await ensureTemplateRefs(env, t);
+  await env.DB.prepare(
+    `UPDATE templates SET name = ?, kind = ?, icon = ?, title = ?, duration_minutes = ?, start_time = ?,
+       repeat_weeks = ?, teacher_id = ?, room_id = ?, note = ?, sort_order = ? WHERE id = ?`,
+  )
+    .bind(t.name, t.kind, t.icon, t.title, t.duration_minutes, t.start_time, t.repeat_weeks, t.teacher_id, t.room_id, t.note, t.sort_order, id)
+    .run();
+  return json(await getById<Template>(env, "templates", id));
+}
+
+async function deleteTemplate(env: Env, id: string) {
+  await mustExist(env, "templates", id, "mẫu lịch");
+  await env.DB.prepare("DELETE FROM templates WHERE id = ?").bind(id).run();
   return new Response(null, { status: 204 });
 }
 
@@ -193,6 +281,7 @@ function parseSession(body: Record<string, unknown>): ParsedSession {
     end_time: end,
     note: optString(body.note, "note", 2000),
     status,
+    kind: parseKind(body.kind, "lecture"),
     repeat_weeks: repeat,
   };
 }
@@ -248,6 +337,11 @@ async function listSessions(env: Env, url: URL) {
     where.push("s.room_id = ?");
     params.push(roomId);
   }
+  const kind = url.searchParams.get("kind");
+  if (kind) {
+    where.push("s.kind = ?");
+    params.push(parseKind(kind, "lecture"));
+  }
 
   const { results } = await env.DB.prepare(`${SESSION_SELECT} WHERE ${where.join(" AND ")} ORDER BY s.date, s.start_time`)
     .bind(...params)
@@ -269,12 +363,12 @@ async function createSession(env: Env, request: Request) {
   const seriesId = dates.length > 1 ? crypto.randomUUID() : null;
   const ids = dates.map(() => crypto.randomUUID());
   const insert = env.DB.prepare(
-    `INSERT INTO sessions (id, series_id, title, class_name, teacher_id, room_id, date, start_time, end_time, note, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO sessions (id, series_id, title, class_name, teacher_id, room_id, date, start_time, end_time, note, status, kind)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   await env.DB.batch(
     dates.map((date, i) =>
-      insert.bind(ids[i], seriesId, s.title, s.class_name, s.teacher_id, s.room_id, date, s.start_time, s.end_time, s.note, s.status),
+      insert.bind(ids[i], seriesId, s.title, s.class_name, s.teacher_id, s.room_id, date, s.start_time, s.end_time, s.note, s.status, s.kind),
     ),
   );
 
@@ -300,9 +394,9 @@ async function updateSession(env: Env, request: Request, id: string) {
 
   await env.DB.prepare(
     `UPDATE sessions SET title = ?, class_name = ?, teacher_id = ?, room_id = ?, date = ?,
-       start_time = ?, end_time = ?, note = ?, status = ? WHERE id = ?`,
+       start_time = ?, end_time = ?, note = ?, status = ?, kind = ? WHERE id = ?`,
   )
-    .bind(s.title, s.class_name, s.teacher_id, s.room_id, s.date, s.start_time, s.end_time, s.note, s.status, id)
+    .bind(s.title, s.class_name, s.teacher_id, s.room_id, s.date, s.start_time, s.end_time, s.note, s.status, s.kind, id)
     .run();
 
   const updated = await env.DB.prepare(`${SESSION_SELECT} WHERE s.id = ?`).bind(id).first<Session>();
@@ -325,7 +419,7 @@ async function deleteSession(env: Env, url: URL, id: string) {
 
 // ---------- Tiện ích DB ----------
 
-type Table = "teachers" | "rooms" | "sessions";
+type Table = "teachers" | "rooms" | "sessions" | "templates";
 
 async function getById<T>(env: Env, table: Table, id: string): Promise<T | null> {
   return env.DB.prepare(`SELECT * FROM ${table} WHERE id = ?`).bind(id).first<T>();
@@ -364,6 +458,13 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
       if (!id && method === "POST") return await createRoom(env, request);
       if (id && method === "PUT") return await updateRoom(env, request, id);
       if (id && method === "DELETE") return await deleteReferenced(env, "rooms", id);
+    }
+
+    if (resource === "templates") {
+      if (!id && method === "GET") return await listTemplates(env);
+      if (!id && method === "POST") return await createTemplate(env, request);
+      if (id && method === "PUT") return await updateTemplate(env, request, id);
+      if (id && method === "DELETE") return await deleteTemplate(env, id);
     }
 
     if (resource === "sessions") {

@@ -1,7 +1,7 @@
 // Phân tích câu lệnh tiếng Việt (từ nhận dạng giọng nói hoặc gõ tay) thành bản nháp buổi giảng.
 // Ví dụ: "Thứ 3 tuần sau thầy An dạy Lập trình Web lớp K66A phòng A101 từ 7 giờ đến 9 giờ 30, lặp 10 tuần"
 
-import type { Room, Teacher } from "@/shared/types";
+import type { EventKind, Room, Teacher } from "@/shared/types";
 import { MAX_REPEAT_WEEKS } from "@/shared/types";
 import { addDays, fromISODate, minutesToTime, toISODate } from "./date";
 
@@ -14,6 +14,7 @@ export interface ParsedCommand {
   start_time?: string;
   end_time?: string;
   repeat_weeks?: number;
+  kind?: EventKind;
 }
 
 /**
@@ -265,7 +266,7 @@ function capitalize(s: string): string {
 }
 
 function parseClass(c: Cursor, out: ParsedCommand) {
-  const m = c.match(/(?<![\p{L}])lop\s+/u);
+  const m = c.match(/(?<![\p{L}])lop /u);
   if (!m) return;
   const p = c.phrase(m.index + m[0].length, 3);
   if (!p) return;
@@ -278,7 +279,8 @@ const FILLER_RE = /^(?:(?:dat|tao|them|xep)\s+lich(?:\s+giang|\s+day|\s+hoc)?|li
 const TRAILING_FILLER_RE = /(?:\s+(?:cho|cua|voi|va|o|tai|vao|luc|thay|co|giang vien|gv))+$/;
 
 function parseTitle(c: Cursor, out: ParsedCommand) {
-  const m = c.match(/(?<![\p{L}])(?:day\s+(?:mon|hoc phan)\s+|mon(?:\s+hoc)?\s+|hoc phan\s+|day\s+)/u);
+  const m = c.match(/(?<![\p{L}])(?:day (?:mon|hoc phan) |mon(?: hoc)? |hoc phan |day )/u);
+  // Dùng đúng 1 khoảng trắng: chuỗi nhiều khoảng trắng là vùng đã dùng, không được nuốt qua
   if (m) {
     const p = c.phrase(m.index + m[0].length);
     if (p) {
@@ -305,6 +307,25 @@ function parseTitle(c: Cursor, out: ParsedCommand) {
   if (best) out.title = capitalize(best);
 }
 
+const KIND_PATTERNS: [RegExp, EventKind][] = [
+  [/(?<![\p{L}])coi thi(?![\p{L}])/u, "exam"],
+  [/(?<![\p{L}])bao ve (?:luan van|luan an|do an|khoa luan)/u, "defense"],
+  [/(?<![\p{L}])(?:seminar|hoi thao)(?![\p{L}])/u, "seminar"],
+  [/(?<![\p{L}])tiep sinh vien(?![\p{L}])/u, "office_hours"],
+  [/(?<![\p{L}])(?:hop|giao ban)(?![\p{L}])/u, "meeting"],
+  [/(?<![\p{L}])thuc hanh(?![\p{L}])/u, "practice"],
+];
+
+/** Nhận loại lịch từ từ khoá; không che chữ vì từ khoá thường cũng là một phần tiêu đề ("Họp bộ môn"). */
+function parseKind(c: Cursor, out: ParsedCommand) {
+  for (const [re, kind] of KIND_PATTERNS) {
+    if (re.test(c.folded)) {
+      out.kind = kind;
+      return;
+    }
+  }
+}
+
 export function parseVoiceCommand(
   text: string,
   ctx: { teachers: Teacher[]; rooms: Room[]; today: string },
@@ -314,6 +335,7 @@ export function parseVoiceCommand(
   const out: ParsedCommand = {};
 
   // Thứ tự quan trọng: tên riêng (phòng, giảng viên) trước để số trong "A101" không bị hiểu là giờ/ngày.
+  parseKind(c, out);
   parseRoom(c, out, ctx.rooms);
   parseTeacher(c, out, ctx.teachers);
   parseRepeat(c, out);

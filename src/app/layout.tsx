@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
 import { Nav } from "@/components/Nav";
 import "./globals.css";
@@ -12,6 +12,18 @@ const beVietnam = Be_Vietnam_Pro({
 export const metadata: Metadata = {
   title: "Lịch Giảng – Quản lý lịch giảng dạy",
   description: "Đặt lịch giảng, quản lý giảng viên và phòng học, tự động phát hiện trùng lịch.",
+  manifest: "/manifest.webmanifest",
+  applicationName: "Lịch Giảng",
+  appleWebApp: { capable: true, title: "Lịch Giảng", statusBarStyle: "black-translucent" },
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/icon-192.png", sizes: "192x192" }],
+    apple: "/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1e1b4b",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

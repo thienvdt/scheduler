@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import type { Conflict, Room, Session, Teacher } from "@/shared/types";
-import { MAX_REPEAT_WEEKS } from "@/shared/types";
+import type { Conflict, EventKind, Room, Session, Teacher, Template } from "@/shared/types";
+import { EVENT_KINDS, KIND_META, MAX_REPEAT_WEEKS } from "@/shared/types";
 import { api, ApiRequestError } from "@/lib/api";
-import { formatFull } from "@/lib/date";
-import { Alert, Button, Field, Input, Modal, Select, Textarea } from "./ui";
+import { formatFull, timeToMinutes } from "@/lib/date";
+import { endAfter, isTeachingKind, templateIcon } from "@/lib/templates";
+import { Alert, Button, cn, Field, Input, Modal, Select, Textarea } from "./ui";
 
 export interface SessionDraft {
   date: string;
@@ -16,6 +17,10 @@ export interface SessionDraft {
   title?: string;
   class_name?: string;
   repeat_weeks?: number;
+  kind?: EventKind;
+  note?: string;
+  /** Mẫu lịch đã dùng để điền form (nếu có). */
+  template_id?: string;
   /** Câu lệnh giọng nói đã dùng để điền form (nếu có). */
   transcript?: string;
 }
@@ -30,6 +35,7 @@ interface FormState {
   end_time: string;
   note: string;
   repeat_weeks: number;
+  kind: EventKind;
 }
 
 function initialForm(session: Session | null, draft: SessionDraft | null): FormState {
@@ -44,6 +50,7 @@ function initialForm(session: Session | null, draft: SessionDraft | null): FormS
       end_time: session.end_time,
       note: session.note ?? "",
       repeat_weeks: 1,
+      kind: session.kind,
     };
   }
   return {
@@ -54,8 +61,9 @@ function initialForm(session: Session | null, draft: SessionDraft | null): FormS
     date: draft?.date ?? "",
     start_time: draft?.start_time ?? "07:00",
     end_time: draft?.end_time ?? "09:00",
-    note: "",
+    note: draft?.note ?? "",
     repeat_weeks: draft?.repeat_weeks ?? 1,
+    kind: draft?.kind ?? "lecture",
   };
 }
 
@@ -64,6 +72,7 @@ export function SessionDialog({
   draft,
   teachers,
   rooms,
+  templates = [],
   onClose,
   onSaved,
 }: {
@@ -71,6 +80,7 @@ export function SessionDialog({
   draft: SessionDraft | null;
   teachers: Teacher[];
   rooms: Room[];
+  templates?: Template[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -78,6 +88,7 @@ export function SessionDialog({
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [busy, setBusy] = useState(false);
+  const [templateId, setTemplateId] = useState(draft?.template_id ?? "");
 
   const isEdit = session !== null;
   const cancelled = session?.status === "cancelled";
@@ -109,10 +120,58 @@ export function SessionDialog({
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((f) => ({ ...f, [key]: value }));
 
+  /** Áp dụng mẫu nhưng giữ ngày/giờ bắt đầu người dùng đã chọn. */
+  function applyTemplate(t: Template) {
+    const previous = templates.find((x) => x.id === templateId);
+    setTemplateId(t.id);
+    setForm((f) => ({
+      ...f,
+      kind: t.kind,
+      title: t.title ?? (previous && f.title === (previous.title ?? "") ? "" : f.title),
+      end_time: endAfter(f.start_time, t.duration_minutes),
+      repeat_weeks: t.repeat_weeks,
+      teacher_id: t.teacher_id ?? f.teacher_id,
+      room_id: t.room_id ?? f.room_id,
+      note: !f.note || f.note === previous?.note ? (t.note ?? "") : f.note,
+    }));
+  }
+
+  // Đổi giờ bắt đầu thì giữ nguyên thời lượng
+  function changeStart(start: string) {
+    setForm((f) => {
+      const duration = timeToMinutes(f.end_time) - timeToMinutes(f.start_time);
+      return { ...f, start_time: start, end_time: start && duration > 0 ? endAfter(start, duration) : f.end_time };
+    });
+  }
+
+  const teaching = isTeachingKind(form.kind);
+
   return (
-    <Modal open title={isEdit ? "Chi tiết buổi giảng" : "Đặt lịch giảng"} onClose={onClose}>
+    <Modal open title={isEdit ? `${KIND_META[form.kind].icon} Chi tiết lịch` : "Đặt lịch"} onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-4">
-        {cancelled && <Alert tone="info">Buổi giảng này đã bị huỷ.</Alert>}
+        {!isEdit && templates.length > 0 && (
+          <div>
+            <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-white/60">Chọn mẫu</div>
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+              {templates.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => applyTemplate(t)}
+                  className={cn(
+                    "shrink-0 rounded-xl border px-3 py-1.5 text-sm backdrop-blur-md transition",
+                    templateId === t.id
+                      ? "border-cyan-300/60 bg-cyan-400/20 text-white"
+                      : "border-white/15 bg-white/5 text-white/80 hover:bg-white/15",
+                  )}
+                >
+                  {templateIcon(t)} {t.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {cancelled && <Alert tone="info">Lịch này đã bị huỷ.</Alert>}
         {draft?.transcript && (
           <Alert tone="info">
             🎤 Đã điền từ câu: “{draft.transcript}”. Hãy kiểm tra lại trước khi lưu.
@@ -135,15 +194,33 @@ export function SessionDialog({
           </Alert>
         )}
 
-        <Field label="Môn học / Nội dung *">
-          <Input required autoFocus={!isEdit} value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="VD: Lập trình Web" />
-        </Field>
-        <Field label="Lớp">
-          <Input value={form.class_name} onChange={(e) => set("class_name", e.target.value)} placeholder="VD: CNTT-K66A" />
-        </Field>
+        <div className="grid gap-4 sm:grid-cols-[1fr_11rem]">
+          <Field label={teaching ? "Môn học *" : "Tiêu đề *"}>
+            <Input
+              required
+              value={form.title}
+              onChange={(e) => set("title", e.target.value)}
+              placeholder={teaching ? "VD: Lập trình Web" : "VD: Họp bộ môn tháng 10"}
+            />
+          </Field>
+          <Field label="Loại lịch">
+            <Select value={form.kind} onChange={(e) => set("kind", e.target.value as EventKind)}>
+              {EVENT_KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {KIND_META[k].icon} {KIND_META[k].label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+        {(teaching || form.kind === "exam" || form.class_name) && (
+          <Field label="Lớp">
+            <Input value={form.class_name} onChange={(e) => set("class_name", e.target.value)} placeholder="VD: CNTT-K66A" />
+          </Field>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Giảng viên *">
+          <Field label={teaching ? "Giảng viên *" : "Chủ trì / Phụ trách *"}>
             <Select required value={form.teacher_id} onChange={(e) => set("teacher_id", e.target.value)}>
               <option value="">— Chọn giảng viên —</option>
               {teachers.map((t) => (
@@ -171,7 +248,7 @@ export function SessionDialog({
             <Input type="date" required value={form.date} onChange={(e) => set("date", e.target.value)} />
           </Field>
           <Field label="Bắt đầu *">
-            <Input type="time" required step={300} value={form.start_time} onChange={(e) => set("start_time", e.target.value)} />
+            <Input type="time" required step={300} value={form.start_time} onChange={(e) => changeStart(e.target.value)} />
           </Field>
           <Field label="Kết thúc *">
             <Input type="time" required step={300} value={form.end_time} onChange={(e) => set("end_time", e.target.value)} />
@@ -190,8 +267,8 @@ export function SessionDialog({
           </Field>
         )}
 
-        <Field label="Ghi chú">
-          <Textarea value={form.note} onChange={(e) => set("note", e.target.value)} />
+        <Field label={teaching ? "Ghi chú" : "Nội dung / Ghi chú"}>
+          <Textarea value={form.note} onChange={(e) => set("note", e.target.value)} className={form.note.includes("\n") ? "min-h-32" : undefined} />
         </Field>
 
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
@@ -203,13 +280,13 @@ export function SessionDialog({
                   disabled={busy}
                   onClick={() => run(() => api.sessions.update(session.id, { status: cancelled ? "scheduled" : "cancelled" }))}
                 >
-                  {cancelled ? "Khôi phục" : "Huỷ buổi"}
+                  {cancelled ? "Khôi phục" : "Huỷ lịch"}
                 </Button>
                 <Button
                   type="button"
                   variant="danger"
                   disabled={busy}
-                  onClick={() => confirm("Xoá buổi giảng này?") && run(() => api.sessions.remove(session.id))}
+                  onClick={() => confirm("Xoá lịch này?") && run(() => api.sessions.remove(session.id))}
                 >
                   Xoá
                 </Button>

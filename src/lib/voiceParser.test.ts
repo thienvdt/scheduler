@@ -86,6 +86,18 @@ describe("parseVoiceCommand", () => {
     expect(parse("Đặt lịch Cơ sở dữ liệu cho thầy An thứ 5 phòng A202 lúc 9 giờ").title).toBe("Cơ sở dữ liệu");
   });
 
+  it("detects the event kind and keeps it in the title", () => {
+    expect(parse("Họp bộ môn thứ 6 lúc 14 giờ phòng A202")).toMatchObject({
+      kind: "meeting",
+      title: "Họp bộ môn",
+      date: "2026-10-09",
+      start_time: "14:00",
+      room_id: "a202",
+    });
+    expect(parse("cô Bình coi thi ngày mai 7h30").kind).toBe("exam");
+    expect(parse("thầy An dạy Lập trình Web").kind).toBeUndefined();
+  });
+
   it("returns an empty draft for unrelated speech", () => {
     expect(parse("")).toEqual({});
   });
