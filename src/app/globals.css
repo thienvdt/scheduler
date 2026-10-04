@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-be-vietnam), ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  color: #f8fafc;
+  background: #0b1026;
+}
+
+/* Nền gradient + các khối màu mờ để hiệu ứng kính (backdrop-blur) nổi bật */
+.glass-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background:
+    radial-gradient(1200px 800px at 10% -10%, #312e81 0%, transparent 60%),
+    radial-gradient(900px 700px at 110% 10%, #0e7490 0%, transparent 55%),
+    linear-gradient(160deg, #0b1026 0%, #1e1b4b 50%, #0f172a 100%);
+}
+
+.glass-bg .blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.55;
+  animation: float 22s ease-in-out infinite alternate;
+}
+
+.glass-bg .blob-1 { width: 420px; height: 420px; left: -80px; top: 30%; background: #7c3aed; }
+.glass-bg .blob-2 { width: 380px; height: 380px; right: -60px; top: -60px; background: #06b6d4; animation-delay: -6s; }
+.glass-bg .blob-3 { width: 340px; height: 340px; left: 45%; bottom: -120px; background: #ec4899; animation-delay: -12s; }
+
+@keyframes float {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(60px, -40px) scale(1.15); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-bg .blob { animation: none; }
+}
+
+@utility glass {
+  background-color: rgb(255 255 255 / 0.08);
+  border: 1px solid rgb(255 255 255 / 0.16);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  box-shadow:
+    0 8px 32px rgb(0 0 0 / 0.25),
+    inset 0 1px 0 rgb(255 255 255 / 0.12);
+}
+
+@utility glass-strong {
+  background-color: rgb(30 27 75 / 0.6);
+  border: 1px solid rgb(255 255 255 / 0.2);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  box-shadow:
+    0 20px 60px rgb(0 0 0 / 0.45),
+    inset 0 1px 0 rgb(255 255 255 / 0.15);
+}
+
+select option {
+  background: #1e1b4b;
+  color: #f8fafc;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.7;
+}
