@@ -9,6 +9,8 @@ import { addDays, formatDayMonth, minutesToTime, startOfWeek, timeToMinutes, tod
 import { Alert, Button, GlassCard, PageHeader, Select } from "@/components/ui";
 import { DAY_END, WeekCalendar } from "@/components/WeekCalendar";
 import { SessionDialog, type SessionDraft } from "@/components/SessionDialog";
+import { VoiceCommand } from "@/components/VoiceCommand";
+import type { ParsedCommand } from "@/lib/voiceParser";
 
 type DialogState = { session: Session | null; draft: SessionDraft | null } | null;
 
@@ -17,6 +19,7 @@ export default function CalendarPage() {
   const [teacherId, setTeacherId] = useState("");
   const [roomId, setRoomId] = useState("");
   const [dialog, setDialog] = useState<DialogState>(null);
+  const [voiceOpen, setVoiceOpen] = useState(false);
 
   const weekEnd = addDays(weekStart, 6);
 
@@ -47,6 +50,26 @@ export default function CalendarPage() {
     setDialog({ session: null, draft: { date, start_time: start, end_time: end, teacher_id: teacherId, room_id: roomId } });
   }
 
+  function openFromVoice(parsed: ParsedCommand, transcript: string) {
+    const date = parsed.date ?? today();
+    const start = parsed.start_time ?? "07:00";
+    const end = parsed.end_time ?? minutesToTime(Math.min(timeToMinutes(start) + 120, DAY_END));
+    setVoiceOpen(false);
+    setWeekStart(startOfWeek(date));
+    setDialog({
+      session: null,
+      draft: {
+        ...parsed,
+        date,
+        start_time: start,
+        end_time: end,
+        teacher_id: parsed.teacher_id ?? teacherId,
+        room_id: parsed.room_id ?? roomId,
+        transcript,
+      },
+    });
+  }
+
   const ready = teachers.length > 0 && rooms.length > 0;
   const metaLoading = teachersRes.loading || roomsRes.loading;
 
@@ -56,9 +79,14 @@ export default function CalendarPage() {
         title="Lịch giảng"
         subtitle={`Tuần ${formatDayMonth(weekStart)} – ${formatDayMonth(weekEnd)}/${weekEnd.slice(0, 4)}`}
         actions={
-          <Button variant="primary" onClick={() => openNew()} disabled={!ready}>
-            + Đặt lịch giảng
-          </Button>
+          <>
+            <Button onClick={() => setVoiceOpen(true)} disabled={!ready} title="Đặt lịch bằng giọng nói">
+              🎤 Giọng nói
+            </Button>
+            <Button variant="primary" onClick={() => openNew()} disabled={!ready}>
+              + Đặt lịch giảng
+            </Button>
+          </>
         }
       />
 
@@ -127,6 +155,10 @@ export default function CalendarPage() {
         onSlotClick={(date, start) => ready && openNew(date, start)}
         onSessionClick={(s) => setDialog({ session: s, draft: null })}
       />
+
+      {voiceOpen && (
+        <VoiceCommand teachers={teachers} rooms={rooms} onClose={() => setVoiceOpen(false)} onSubmit={openFromVoice} />
+      )}
 
       {dialog && (
         <SessionDialog

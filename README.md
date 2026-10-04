@@ -3,6 +3,19 @@
 Ứng dụng đặt lịch giảng cho giảng viên: quản lý **giảng viên**, **phòng học** và **buổi giảng** trên lịch tuần,
 tự động **phát hiện trùng lịch** (cùng giảng viên hoặc cùng phòng), hỗ trợ **lặp lại hằng tuần**. Giao diện glassmorphism.
 
+## Đặt lịch bằng giọng nói
+
+Nút **🎤 Giọng nói** trên trang lịch: nói (hoặc gõ) một câu, app tự điền form đặt lịch để bạn kiểm tra rồi lưu. Ví dụ:
+
+> Thứ 3 tuần sau thầy An dạy Lập trình Web lớp K66A phòng A101 từ 7 giờ đến 9 giờ 30, lặp 10 tuần
+
+- Nhận dạng giọng nói dùng Web Speech API của trình duyệt (`vi-VN`), miễn phí, cần Chrome/Edge/Safari, HTTPS và Internet.
+  Lưu ý: Chrome gửi âm thanh tới máy chủ Google để nhận dạng. Firefox chưa hỗ trợ nên chỉ gõ được.
+- Câu lệnh được phân tích ngay trên trình duyệt bởi `src/lib/voiceParser.ts` (có unit test). Hiểu được:
+  thứ/chủ nhật (kèm "tuần sau"), "hôm nay/ngày mai", ngày "20/10" hoặc "5 tháng 1"; giờ "7h30", "từ 1 đến 3 giờ chiều",
+  "rưỡi", "trong 2 tiếng"; giảng viên theo họ tên hoặc "thầy/cô + tên"; phòng; "lớp …"; "môn …" / "dạy …"; "lặp N tuần".
+- Giờ 1–6 không nói rõ buổi được hiểu là buổi chiều. Nếu tên gọi trùng giữa nhiều giảng viên, app để trống cho bạn tự chọn.
+
 ## Kiến trúc
 
 | Phần | Công nghệ |

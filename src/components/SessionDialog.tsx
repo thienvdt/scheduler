@@ -13,6 +13,11 @@ export interface SessionDraft {
   end_time: string;
   teacher_id?: string;
   room_id?: string;
+  title?: string;
+  class_name?: string;
+  repeat_weeks?: number;
+  /** Câu lệnh giọng nói đã dùng để điền form (nếu có). */
+  transcript?: string;
 }
 
 interface FormState {
@@ -42,15 +47,15 @@ function initialForm(session: Session | null, draft: SessionDraft | null): FormS
     };
   }
   return {
-    title: "",
-    class_name: "",
+    title: draft?.title ?? "",
+    class_name: draft?.class_name ?? "",
     teacher_id: draft?.teacher_id ?? "",
     room_id: draft?.room_id ?? "",
     date: draft?.date ?? "",
     start_time: draft?.start_time ?? "07:00",
     end_time: draft?.end_time ?? "09:00",
     note: "",
-    repeat_weeks: 1,
+    repeat_weeks: draft?.repeat_weeks ?? 1,
   };
 }
 
@@ -108,6 +113,11 @@ export function SessionDialog({
     <Modal open title={isEdit ? "Chi tiết buổi giảng" : "Đặt lịch giảng"} onClose={onClose}>
       <form onSubmit={submit} className="flex flex-col gap-4">
         {cancelled && <Alert tone="info">Buổi giảng này đã bị huỷ.</Alert>}
+        {draft?.transcript && (
+          <Alert tone="info">
+            🎤 Đã điền từ câu: “{draft.transcript}”. Hãy kiểm tra lại trước khi lưu.
+          </Alert>
+        )}
         {error && (
           <Alert>
             <div className="font-medium">{error}</div>
