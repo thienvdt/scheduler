@@ -3,6 +3,23 @@
 Ứng dụng đặt lịch giảng cho giảng viên: quản lý **giảng viên**, **phòng học** và **buổi giảng** trên lịch tuần,
 tự động **phát hiện trùng lịch** (cùng giảng viên hoặc cùng phòng), hỗ trợ **lặp lại hằng tuần**. Giao diện glassmorphism.
 
+## Tính năng
+
+- **Lịch tuần** và **dạng danh sách** (tự dùng danh sách trên điện thoại), lọc theo giảng viên, phòng, loại lịch.
+- **Loại lịch:** giảng dạy, thực hành, cuộc họp, seminar, coi thi, bảo vệ, tiếp sinh viên, khác.
+- **Mẫu lịch** (trang *Mẫu lịch*): 8 mẫu có sẵn (họp bộ môn, họp khoa, seminar, coi thi, bảo vệ đồ án…), người dùng tự tạo / sửa /
+  nhân bản. Chọn mẫu bằng nút **📋 Từ mẫu** hoặc các nút mẫu trong form đặt lịch để điền sẵn tiêu đề, thời lượng, giờ, phòng,
+  người chủ trì, nội dung.
+- **Phát hiện trùng lịch** theo giảng viên và phòng, **lặp hằng tuần**, huỷ / khôi phục, xoá chuỗi lặp.
+- **Đặt lịch bằng giọng nói** (xem bên dưới).
+- **Xuất lịch .ics** (nút 📅 Xuất .ics) theo bộ lọc đang chọn – tuần / 4 tuần / học kỳ, có nhắc trước – để nhập vào
+  Google Calendar, Outlook, Lịch điện thoại.
+- **Báo cáo khối lượng** (trang *Báo cáo*): giờ giảng, giờ họp & sự kiện theo giảng viên, xuất CSV mở bằng Excel.
+- **Cài như ứng dụng (PWA):** nút *Lưu ra màn hình* (điện thoại) / *Cài lên máy tính* (desktop).
+  Chrome/Edge (Windows, macOS, Android) hiện hộp thoại cài ngay – trên Windows có tuỳ chọn tạo lối tắt Desktop.
+  iPhone/iPad và Safari trên Mac không cho phép web tự cài, nên app hiện hướng dẫn từng bước (Chia sẻ → Thêm vào MH chính,
+  hoặc Tệp → Thêm vào Dock). Firefox chưa hỗ trợ cài app.
+
 ## Đặt lịch bằng giọng nói
 
 Nút **🎤 Giọng nói** trên trang lịch: nói (hoặc gõ) một câu, app tự điền form đặt lịch để bạn kiểm tra rồi lưu. Ví dụ:
@@ -25,12 +42,13 @@ Nút **🎤 Giọng nói** trên trang lịch: nói (hoặc gõ) một câu, app
 | CSDL | Cloudflare D1 (SQLite) – `migrations/` |
 
 ```
-src/app/            Trang: / (lịch tuần), /teachers, /rooms
+src/app/            Trang: / (lịch), /teachers, /rooms, /templates, /reports
 src/components/     UI glass, WeekCalendar, SessionDialog
 src/shared/types.ts Kiểu dữ liệu dùng chung cho UI và API
 server/             Router API + logic kiểm tra trùng lịch (có unit test)
 functions/          Entry Pages Functions
-migrations/         Schema D1
+migrations/         Schema D1 (0001 bảng chính, 0002 loại lịch + mẫu lịch)
+public/             Manifest, icon, service worker (PWA)
 seed/seed.sql       Dữ liệu mẫu
 ```
 
@@ -42,7 +60,9 @@ seed/seed.sql       Dữ liệu mẫu
 | PUT/DELETE | `/api/teachers/:id` | Sửa / xoá (409 nếu đang có lịch) |
 | GET/POST | `/api/rooms` | Danh sách / thêm phòng |
 | PUT/DELETE | `/api/rooms/:id` | Sửa / xoá (409 nếu đang có lịch) |
-| GET | `/api/sessions?from=&to=&teacherId=&roomId=` | Lịch trong khoảng ngày |
+| GET/POST | `/api/templates` | Danh sách / thêm mẫu lịch |
+| PUT/DELETE | `/api/templates/:id` | Sửa / xoá mẫu lịch |
+| GET | `/api/sessions?from=&to=&teacherId=&roomId=&kind=` | Lịch trong khoảng ngày |
 | POST | `/api/sessions` | Đặt lịch (`repeat_weeks` 1–30), 409 kèm `conflicts` nếu trùng |
 | PUT | `/api/sessions/:id` | Sửa / huỷ (`status: "cancelled"`) / khôi phục |
 | DELETE | `/api/sessions/:id[?scope=following]` | Xoá buổi / xoá buổi này và các buổi sau trong chuỗi |

@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import type { Room, Session, Teacher, Template } from "@/shared/types";
 import { EVENT_KINDS, KIND_META } from "@/shared/types";
 import { endAfter, isTeachingKind } from "@/lib/templates";
 import { TemplatePicker } from "@/components/TemplatePicker";
+import { AgendaList } from "@/components/AgendaList";
+import { ExportDialog } from "@/components/ExportDialog";
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
 import { addDays, formatDayMonth, minutesToTime, startOfWeek, timeToMinutes, today } from "@/lib/date";
@@ -14,6 +16,15 @@ import { DAY_END, WeekCalendar } from "@/components/WeekCalendar";
 import { SessionDialog, type SessionDraft } from "@/components/SessionDialog";
 import { VoiceCommand } from "@/components/VoiceCommand";
 import type { ParsedCommand } from "@/lib/voiceParser";
+
+type View = "week" | "list";
+
+const SMALL_QUERY = "(max-width: 639px)";
+function subscribeSmall(cb: () => void) {
+  const m = window.matchMedia(SMALL_QUERY);
+  m.addEventListener("change", cb);
+  return () => m.removeEventListener("change", cb);
+}
 
 type DialogState = { session: Session | null; draft: SessionDraft | null } | null;
 
@@ -25,6 +36,11 @@ export default function CalendarPage() {
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [kind, setKind] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
+  // Mặc định: điện thoại xem dạng danh sách, máy tính xem lưới tuần; người dùng có thể đổi
+  const small = useSyncExternalStore(subscribeSmall, () => window.matchMedia(SMALL_QUERY).matches, () => false);
+  const [viewOverride, setViewOverride] = useState<View | null>(null);
+  const view: View = viewOverride ?? (small ? "list" : "week");
 
   const weekEnd = addDays(weekStart, 6);
 
@@ -148,6 +164,19 @@ export default function CalendarPage() {
       </div>
 
       <GlassCard className="mb-4 flex flex-wrap items-center gap-2 p-3">
+        <div className="flex rounded-xl border border-white/15 bg-white/5 p-0.5" role="group" aria-label="Chế độ xem">
+          {(["week", "list"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setViewOverride(v)}
+              aria-pressed={view === v}
+              className={`rounded-lg px-3 py-1.5 text-sm transition ${view === v ? "bg-white/20 text-white" : "text-white/60 hover:text-white"}`}
+            >
+              {v === "week" ? "▦ Tuần" : "☰ Danh sách"}
+            </button>
+          ))}
+        </div>
         <div className="flex gap-1">
           <Button onClick={() => setWeekStart(addDays(weekStart, -7))} aria-label="Tuần trước">
             ‹
@@ -155,6 +184,9 @@ export default function CalendarPage() {
           <Button onClick={() => setWeekStart(startOfWeek(today()))}>Hôm nay</Button>
           <Button onClick={() => setWeekStart(addDays(weekStart, 7))} aria-label="Tuần sau">
             ›
+          </Button>
+          <Button onClick={() => setExportOpen(true)} title="Xuất lịch sang Google Calendar / Outlook / điện thoại">
+            📅 Xuất .ics
           </Button>
         </div>
         <div className="ml-auto flex w-full flex-wrap gap-2 sm:w-auto">
@@ -200,12 +232,36 @@ export default function CalendarPage() {
         </div>
       )}
 
-      <WeekCalendar
-        weekStart={weekStart}
-        sessions={sessions}
-        onSlotClick={(date, start) => ready && openNew(date, start)}
-        onSessionClick={(s) => setDialog({ session: s, draft: null })}
-      />
+      {view === "week" ? (
+        <WeekCalendar
+          weekStart={weekStart}
+          sessions={sessions}
+          onSlotClick={(date, start) => ready && openNew(date, start)}
+          onSessionClick={(s) => setDialog({ session: s, draft: null })}
+        />
+      ) : (
+        <AgendaList
+          weekStart={weekStart}
+          sessions={sessions}
+          onSessionClick={(s) => setDialog({ session: s, draft: null })}
+          onAdd={ready ? (date) => openNew(date, "07:00") : undefined}
+        />
+      )}
+
+      {exportOpen && (
+        <ExportDialog
+          weekStart={weekStart}
+          filters={{ teacherId: teacherId || undefined, roomId: roomId || undefined, kind: kind || undefined }}
+          filterLabel={[
+            teachers.find((t) => t.id === teacherId)?.name,
+            rooms.find((r) => r.id === roomId) && `Phòng ${rooms.find((r) => r.id === roomId)?.name}`,
+            kind && KIND_META[kind as keyof typeof KIND_META]?.label,
+          ]
+            .filter(Boolean)
+            .join(", ")}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
 
       {voiceOpen && (
         <VoiceCommand teachers={teachers} rooms={rooms} onClose={() => setVoiceOpen(false)} onSubmit={openFromVoice} />

@@ -72,7 +72,8 @@ function getSnapshot(): InstallState {
       (navigator as Navigator & { standalone?: boolean }).standalone === true,
     canPrompt: deferredPrompt !== null,
     platform,
-    mobile: platform === "ios" || platform === "android",
+    // Màn hình cảm ứng nhỏ cũng tính là điện thoại (một số trình duyệt báo user agent máy tính)
+    mobile: platform === "ios" || platform === "android" || window.matchMedia("(pointer: coarse) and (max-width: 820px)").matches,
   };
   // useSyncExternalStore cần cùng một object khi không có gì thay đổi
   if (cached && JSON.stringify(cached) === JSON.stringify(next)) return cached;
@@ -104,11 +105,13 @@ export function InstallButton() {
   }
 
   const label = state.mobile ? "📲 Lưu ra màn hình" : "💻 Cài lên máy tính";
+  const shortLabel = state.mobile ? "📲 Lưu app" : "💻 Cài app";
 
   return (
     <>
       <Button variant="primary" className="px-3 py-1.5" onClick={install} title="Cài Lịch Giảng như một ứng dụng">
-        {label}
+        <span className="hidden md:inline">{label}</span>
+        <span className="md:hidden">{shortLabel}</span>
       </Button>
       <Modal open={guideOpen} title={state.mobile ? "Lưu ra màn hình chính" : "Cài lên máy tính"} onClose={() => setGuideOpen(false)}>
         <InstallGuide platform={state.platform} />

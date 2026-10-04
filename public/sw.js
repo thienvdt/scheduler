@@ -1,7 +1,7 @@
 // Service worker: cho phép cài app (PWA) và mở được giao diện khi mất mạng.
 // API (/api/*) luôn đi thẳng ra mạng – dữ liệu lịch không bị cache cũ.
-const CACHE = "lich-giang-v1";
-const SHELL = ["/", "/teachers/", "/rooms/", "/templates/", "/manifest.webmanifest", "/icon-192.png"];
+const CACHE = "lich-giang-v2";
+const SHELL = ["/", "/teachers/", "/rooms/", "/templates/", "/reports/", "/manifest.webmanifest", "/icon-192.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
