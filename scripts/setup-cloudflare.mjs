@@ -88,7 +88,7 @@ async function main() {
     dbId = list.find((d) => d.name === dbName)?.uuid ?? "";
   }
   if (!dbId && !DRY) throw new Error(`Không tạo/tìm được D1 "${dbName}". Kết quả:\n${created}`);
-  console.log(`${c.green}✓ database_id = ${dbId || "<id>"}${c.reset}`);
+  console.log(DRY ? `${c.dim}(chạy thử) database_id sẽ lấy từ kết quả lệnh trên${c.reset}` : `${c.green}✓ database_id = ${dbId}${c.reset}`);
 
   // Ghi vào wrangler.toml
   const toml = readFileSync(TOML, "utf8")
@@ -96,7 +96,7 @@ async function main() {
     .replace(/^database_name = ".*"$/m, `database_name = "${dbName}"`)
     .replace(/^database_id = ".*"$/m, `database_id = "${dbId || "<id>"}"`);
   if (!DRY) writeFileSync(TOML, toml);
-  console.log(`${c.green}✓ Đã cập nhật wrangler.toml${c.reset}`);
+  console.log(DRY ? `${c.dim}(chạy thử) sẽ ghi name, database_name, database_id vào wrangler.toml${c.reset}` : `${c.green}✓ Đã cập nhật wrangler.toml${c.reset}`);
 
   step(4, "Tạo bảng dữ liệu");
   wrangler(["d1", "migrations", "apply", "DB", "--remote"], { inherit: true });
