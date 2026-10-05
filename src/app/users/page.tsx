@@ -5,6 +5,7 @@ import type { Role, Teacher, User } from "@/shared/types";
 import { MIN_PASSWORD_LENGTH } from "@/shared/types";
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
+import { suggestUsername } from "@/lib/username";
 import { useAuth } from "@/components/AuthProvider";
 import { Alert, Button, Field, GlassCard, Input, Modal, PageHeader, Select } from "@/components/ui";
 
@@ -17,17 +18,6 @@ interface UserForm {
 }
 
 const empty: UserForm = { username: "", display_name: "", role: "teacher", teacher_id: "", password: "" };
-
-/** Gợi ý tên đăng nhập từ họ tên: "TS. Trần Thị Bình" → "binh" */
-function suggestUsername(name: string): string {
-  const last = name.trim().split(/\s+/).pop() ?? "";
-  return last
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/đ/gi, "d")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-}
 
 export default function UsersPage() {
   const { isAdmin, user: me, terms } = useAuth();

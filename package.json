@@ -14,7 +14,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.worker.json",
     "test": "vitest run",
-    "setup:cloudflare": "node scripts/setup-cloudflare.mjs"
+    "setup:cloudflare": "node scripts/setup-cloudflare.mjs",
+    "simulate:cloudflare": "node scripts/setup-cloudflare.mjs --simulate"
   },
   "dependencies": {
     "next": "16.3.8",

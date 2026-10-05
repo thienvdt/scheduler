@@ -132,6 +132,9 @@ châu Á – `apac`) → ghi `database_id` vào `wrangler.toml` → tạo bảng
 
 - Không hỏi lại: `npm run setup:cloudflare -- --name=lich-truong-abc --location=apac`
 - Xem trước các lệnh mà không thực hiện: `npm run setup:cloudflare -- --dry-run`
+- **Mô phỏng toàn bộ trên máy, không cần tài khoản Cloudflare:** `npm run simulate:cloudflare -- --name=lich-truong-abc`
+  – chạy thật mọi bước (tạo D1, tạo bảng, build, chạy app) trên Cloudflare giả lập, dữ liệu riêng trong
+  `.wrangler/simulate/<tên>`, không sửa `wrangler.toml`; mở `http://localhost:8790` để thử như bản thật, Ctrl+C để dừng.
 - Cập nhật phiên bản mới về sau: `git pull && npm run db:migrate:remote && npm run deploy`
 - Gắn tên miền riêng (vd. `lich.truongabc.edu.vn`): Cloudflare dashboard → Workers & Pages → dự án → *Custom domains*.
 

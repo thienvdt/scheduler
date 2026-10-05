@@ -3,15 +3,18 @@
 // Chạy: npm run setup:cloudflare
 //   Tuỳ chọn: -- --name=lich-truong-abc --location=apac   (không hỏi lại)
 //             -- --dry-run                                (chỉ in các lệnh sẽ chạy)
+//             -- --simulate [--port=8790]                 (mô phỏng: chạy thật mọi bước trên Cloudflare giả lập
+//                                                          trong máy – không cần tài khoản, không đụng wrangler.toml)
 //
 // Các bước: đăng nhập Cloudflare → tạo cơ sở dữ liệu D1 → ghi database_id vào wrangler.toml
 //           → tạo bảng (migrations) → build → tạo dự án Pages → deploy.
 
-import { execFileSync, spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
 
 const DRY = process.argv.includes("--dry-run");
+const SIM = process.argv.includes("--simulate");
 const arg = (name) => process.argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
 const TOML = new URL("../wrangler.toml", import.meta.url);
 const NAME_RE = /^[a-z0-9][a-z0-9-]{0,56}[a-z0-9]$/;
@@ -46,7 +49,8 @@ function run(cmd, args) {
 }
 
 async function main() {
-  console.log(`${c.bold}Cài đặt Lịch lên Cloudflare (tài khoản của đơn vị bạn)${c.reset}${DRY ? "  [chạy thử – không thay đổi gì]" : ""}`);
+  const mode = DRY ? "  [chạy thử – không thay đổi gì]" : SIM ? "  [mô phỏng – Cloudflare giả lập trong máy]" : "";
+  console.log(`${c.bold}Cài đặt Lịch lên Cloudflare (tài khoản của đơn vị bạn)${c.reset}${mode}`);
   console.log(`${c.dim}Gói miễn phí của Cloudflare đủ cho hầu hết trường học / doanh nghiệp vừa và nhỏ.${c.reset}`);
 
   let rl = null;
@@ -57,6 +61,7 @@ async function main() {
   };
 
   step(1, "Đăng nhập Cloudflare");
+  if (SIM) return simulate(ask);
   const who = wrangler(["whoami"], { allowFail: true });
   if (DRY || /not authenticated|You are not logged in/i.test(who)) {
     console.log("Trình duyệt sẽ mở để bạn đăng nhập (hoặc tạo tài khoản miễn phí tại dash.cloudflare.com/sign-up).");
@@ -112,6 +117,56 @@ async function main() {
   const url = `https://${project}.pages.dev`;
   console.log(`\n${c.green}${c.bold}Xong!${c.reset} Mở ${c.bold}${url}${c.reset} ngay để tạo tài khoản quản trị viên đầu tiên.`);
   console.log(`${c.dim}(Có thể mất 1–2 phút để tên miền hoạt động. Lần cập nhật sau chỉ cần: npm run deploy)${c.reset}`);
+}
+
+/** Mô phỏng: chạy thật các bước trên Cloudflare giả lập (wrangler --local), dữ liệu riêng trong .wrangler/simulate. */
+async function simulate(ask) {
+  const sim = (text) => console.log(`${c.dim}(mô phỏng) ${text}${c.reset}`);
+  sim("bỏ qua đăng nhập – không cần tài khoản Cloudflare");
+
+  step(2, "Đặt tên");
+  const project = (await ask("Tên dự án", "lich-don-vi", arg("name"))).toLowerCase();
+  if (!NAME_RE.test(project)) throw new Error("Tên dự án không hợp lệ");
+  const location = arg("location") ?? "apac";
+  const port = arg("port") ?? "8790";
+  const dir = `.wrangler/simulate/${project}`;
+  console.log(`Dự án: ${c.bold}${project}${c.reset} · Cơ sở dữ liệu: ${c.bold}${project}-db${c.reset} · Vị trí: ${location}`);
+
+  step(3, `Tạo cơ sở dữ liệu D1 “${project}-db”`);
+  rmSync(dir, { recursive: true, force: true });
+  sim(`tạo D1 cục bộ tại ${dir} (thay cho: wrangler d1 create ${project}-db --location ${location})`);
+  sim(`trên Cloudflare thật, database_id sẽ được ghi vào wrangler.toml – bản mô phỏng không sửa file này`);
+  console.log(`${c.green}✓ Đã tạo cơ sở dữ liệu giả lập${c.reset}`);
+
+  step(4, "Tạo bảng dữ liệu");
+  const migrated = wrangler(["d1", "migrations", "apply", "DB", "--local", "--persist-to", dir]);
+  // wrangler in bảng tiến trình nhiều lần → bỏ trùng
+  const applied = [...new Set([...migrated.matchAll(/(\d{4}_\w+\.sql)\s*│\s*✅/g)].map((m) => m[1]))];
+  console.log(`${c.green}✓ Đã chạy ${applied.length} migration: ${applied.join(", ")}${c.reset}`);
+
+  step(5, "Build giao diện");
+  run("npm", ["run", "build", "--silent"]);
+  console.log(`${c.green}✓ Đã build vào thư mục out/${c.reset}`);
+
+  step(6, "Deploy (mô phỏng)");
+  sim(`thay cho: wrangler pages deploy out --project-name ${project}`);
+  const args = ["wrangler", "pages", "dev", "out", "--port", port, "--persist-to", dir, "--inspector-port", String(Number(port) + 1000)];
+  console.log(`${c.dim}$ npx ${args.join(" ")}${c.reset}`);
+  const server = spawn("npx", args, { stdio: ["ignore", "pipe", "pipe"] });
+  const url = `http://localhost:${port}`;
+  for (let i = 0; i < 60; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    if (await fetch(`${url}/api/health`).then((r) => r.ok, () => false)) break;
+  }
+  console.log(`\n${c.green}${c.bold}Xong (mô phỏng)!${c.reset} Mở ${c.bold}${url}${c.reset} để chọn loại hình và tạo tài khoản quản trị.`);
+  console.log(`${c.dim}Trên Cloudflare thật địa chỉ sẽ là https://${project}.pages.dev. Nhấn Ctrl+C để dừng mô phỏng.${c.reset}`);
+  const stop = () => {
+    server.kill();
+    process.exit(0);
+  };
+  process.on("SIGINT", stop);
+  process.on("SIGTERM", stop);
+  await new Promise((resolve) => server.on("exit", resolve));
 }
 
 main().catch((err) => {
