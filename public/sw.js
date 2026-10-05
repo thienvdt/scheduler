@@ -1,8 +1,8 @@
 // Service worker: cho phép cài app (PWA) và mở được giao diện khi mất mạng.
 // API (/api/*) luôn đi thẳng ra mạng – dữ liệu lịch không bị cache cũ.
-const CACHE = "lich-giang-v4";
+const CACHE = "lich-giang-v5";
 // Đường dẫn tương đối với vị trí sw.js, để chạy được cả khi app nằm trong thư mục con (vd. GitHub Pages)
-const SHELL = ["./", "teachers/", "rooms/", "templates/", "reports/", "settings/", "users/", "import/", "manifest.webmanifest", "icon-192.png", "sql-wasm.wasm"];
+const SHELL = ["./", "teachers/", "rooms/", "templates/", "reports/", "settings/", "users/", "import/", "so-do/", "manifest.webmanifest", "icon-192.png", "sql-wasm.wasm"];
 const ROOT = new URL("./", self.location).pathname;
 
 self.addEventListener("install", (event) => {

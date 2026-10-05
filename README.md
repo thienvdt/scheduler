@@ -35,6 +35,9 @@ dùng cho họp online, đi công tác. Quản trị viên có thể đánh dấ
 
 ## Tính năng
 
+- **Sơ đồ** (trang *Sơ đồ*): mặt bằng các phòng vẽ từ dữ liệu thật – người chủ trì đứng bục, người tham dự ngồi bàn,
+  người rảnh ở phòng chờ, phòng ảo gom vào khu *Trực tuyến & bên ngoài*. Kéo thanh thời gian hoặc bấm **▶ Chạy** để xem
+  mọi người di chuyển trong ngày; bảng *Tình trạng phòng* cho biết đang diễn ra gì, ai chủ trì, bao nhiêu người, tiếp theo.
 - **Hướng dẫn ngay trên trang:** lần đầu đăng nhập, app tự mở tour 12 bước – làm nổi bật từng nút (menu, Đặt lịch, Từ mẫu,
   Giọng nói, Tìm giờ trống, lịch tuần, bộ lọc…) kèm bong bóng giải thích; phím ← → / Esc. Mở lại bất cứ lúc nào ở menu tài
   khoản → **📘 Hướng dẫn sử dụng** (hoặc thêm `#tour` vào đường dẫn).

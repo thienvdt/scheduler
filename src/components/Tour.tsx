@@ -80,7 +80,8 @@ export function Tour({ hasData }: { hasData: boolean }) {
       body: (
         <>
           <p>
-            <b>{terms.people}</b> và <b>{terms.room}</b>: danh sách người và phòng. <b>Mẫu lịch</b>: các mẫu họp, coi thi… để đặt nhanh.{" "}
+            <b>Sơ đồ</b>: xem trực quan ai đang ở {terms.room.toLowerCase()} nào, kéo thời gian hoặc bấm Chạy. <b>{terms.people}</b> và{" "}
+            <b>{terms.room}</b>: danh sách người và phòng. <b>Mẫu lịch</b>: các mẫu họp, coi thi… để đặt nhanh.{" "}
             <b>Báo cáo</b>: tổng giờ theo từng {person}, xuất Excel.
           </p>
           {isAdmin && (

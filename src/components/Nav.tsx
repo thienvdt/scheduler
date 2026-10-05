@@ -10,6 +10,7 @@ import type { Profile } from "@/shared/profiles";
 
 const linksFor = (t: Profile) => [
   { href: "/", label: "Lịch" },
+  { href: "/so-do/", label: "Sơ đồ" },
   { href: "/teachers/", label: t.people },
   { href: "/rooms/", label: t.room },
   { href: "/templates/", label: "Mẫu lịch" },
