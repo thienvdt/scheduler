@@ -156,6 +156,14 @@ châu Á – `apac`) → ghi `database_id` vào `wrangler.toml` → tạo bảng
 - Cập nhật phiên bản mới về sau: `git pull && npm run db:migrate:remote && npm run deploy`
 - Gắn tên miền riêng (vd. `lich.truongabc.edu.vn`): Cloudflare dashboard → Workers & Pages → dự án → *Custom domains*.
 
+## Chạy thử không cần cài gì: GitHub Codespaces
+
+[![Mở trong GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/thienvdt/scheduler?ref=claude/modest-einstein-wr43sn)
+
+Bấm nút trên (hoặc trên GitHub: **Code → Codespaces → Create codespace**). Lần đầu mất vài phút để tự cài, tạo CSDL
+và build; sau đó app Lịch tự mở trong tab mới (cổng 8788). App GVBM giả lập để thử import ở tab **Ports**, cổng 8790.
+Tài khoản GitHub cá nhân có sẵn giờ dùng Codespaces miễn phí mỗi tháng; nhớ **Stop** codespace khi thử xong.
+
 ## Chạy local
 
 ```bash

@@ -234,7 +234,10 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
 
     // Chống CSRF: request thay đổi dữ liệu phải đến từ chính trang này
     const origin = request.headers.get("origin");
-    if (method !== "GET" && method !== "HEAD" && origin && new URL(origin).host !== url.host) {
+    // Sau proxy chuyển tiếp cổng (vd. GitHub Codespaces) Host là localhost, tên thật nằm ở X-Forwarded-Host.
+    // Trang lạ không tự gắn được header này vào form gửi chéo trang nên vẫn chặn được CSRF.
+    const hosts = [url.host, request.headers.get("x-forwarded-host")];
+    if (method !== "GET" && method !== "HEAD" && origin && !hosts.includes(new URL(origin).host)) {
       throw new HttpError(403, "Yêu cầu không hợp lệ");
     }
 

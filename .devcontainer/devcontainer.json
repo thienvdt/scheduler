@@ -1,0 +1,16 @@
+{
+  // Mở repo bằng GitHub Codespaces: tự cài, tạo CSDL local, build rồi chạy app Lịch (8788) và app GVBM giả lập (8790).
+  "name": "Lịch giảng",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "containerEnv": { "WRANGLER_SEND_METRICS": "false" },
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "postAttachCommand": {
+    "app": "npx wrangler pages dev out --port 8788",
+    "demo": "npm run demo:import"
+  },
+  "forwardPorts": [8788, 8790],
+  "portsAttributes": {
+    "8788": { "label": "App Lịch", "onAutoForward": "openBrowser" },
+    "8790": { "label": "App GVBM giả lập", "onAutoForward": "silent" }
+  }
+}

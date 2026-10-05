@@ -16,8 +16,8 @@ th{background:#ecfdf5;color:#065f46} td.s{background:#f0fdfa;font-weight:600}
 <div class="card" style="border:2px dashed #99f6e4">
 <h3 style="margin-top:0">🧪 Hướng dẫn thử (chỉ có ở bản giả lập)</h3>
 <ol style="line-height:1.8">
-<li><b>Khác tên miền (dấu trang):</b> mở app lịch <a href="http://localhost:8788/import/" target="_blank">localhost:8788/import</a> → mục “Lấy dữ liệu từ app GVCN / GVBM ở trang web khác” → kéo nút <b>📥 Gửi sang Lịch</b> lên thanh dấu trang. Quay lại trang này, bấm dấu trang đó.</li>
-<li><b>Cùng tên miền (hộp hỏi tự hiện):</b> mở <a href="http://localhost:8788/" target="_blank">localhost:8788</a>, bấm F12 → Console, dán đoạn mã dưới rồi Enter. Trang tải lại và hỏi “Bạn có muốn import…?”.
+<li><b>Khác tên miền (dấu trang):</b> mở app lịch <a class="app-link" data-path="/import/" target="_blank">app Lịch › Nhập thời khoá biểu</a> → mục “Lấy dữ liệu từ app GVCN / GVBM ở trang web khác” → kéo nút <b>📥 Gửi sang Lịch</b> lên thanh dấu trang. Quay lại trang này, bấm dấu trang đó.</li>
+<li><b>Cùng tên miền (hộp hỏi tự hiện):</b> mở <a class="app-link" data-path="/" target="_blank">app Lịch</a>, bấm F12 → Console, dán đoạn mã dưới rồi Enter. Trang tải lại và hỏi “Bạn có muốn import…?”.
 <pre id="snippet" style="background:#0f172a;color:#e2e8f0;padding:10px;border-radius:8px;white-space:pre-wrap;font-size:12px"></pre>
 <button onclick="navigator.clipboard.writeText(document.getElementById('snippet').textContent);this.textContent='Đã chép ✓'" style="padding:6px 14px;border-radius:8px;border:0;background:#0f766e;color:#fff;cursor:pointer">Chép đoạn mã</button></li>
 <li><b>File:</b> tải <a href="/tkb-mau.csv">tkb-mau.csv</a> hoặc <a href="/tkb-mau.json">tkb-mau.json</a> rồi chọn ở trang Nhập → “Chọn file CSV / JSON”.</li>
@@ -56,6 +56,11 @@ const gvcn = {
   },
   "10A2": { "Thứ 4": [{ tiet: 1, mon: "Ngữ văn", gv: "Trần Thị Bình" }], "Thứ 6": [{ tiet: 1, mon: "Toán", gv: "Lê Văn An" }] }
 };
+// Địa chỉ app Lịch: máy bạn → localhost:8788; GitHub Codespaces → cùng tên với cổng 8788
+const appBase = location.hostname.endsWith(".app.github.dev")
+  ? location.origin.replace(/-8790\./, "-8788.")
+  : "http://localhost:8788";
+document.querySelectorAll(".app-link").forEach((a) => (a.href = appBase + a.dataset.path));
 document.getElementById("snippet").textContent =
   "localStorage.setItem('gvcn_tkb_lop', JSON.stringify(" + JSON.stringify(gvcn) + ")); location.reload();";
 </script></html>
