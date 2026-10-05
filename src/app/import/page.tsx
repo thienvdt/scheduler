@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
 import { startOfWeek, today, formatFull } from "@/lib/date";
 import {
-  DEFAULT_BELLS, FIELDS, FIELD_LABELS, buildItems, norm, parseBells, parseFileText, readLocalStorage, scanStorage, timetableScore,
+  DEFAULT_BELLS, FIELDS, FIELD_LABELS, buildItems, markImported, norm, parseBells, parseFileText, readLocalStorage, scanStorage, timetableScore,
   type Dataset, type Mapping,
 } from "@/lib/importer";
 import { BRIDGE_READY, IMPORT_PICK, bookmarklet, readBridgeMessage, type Bridged } from "@/lib/importBridge";
@@ -105,6 +105,8 @@ export default function ImportPage() {
       else {
         setDone(result);
         setCheck(null);
+        // Dữ liệu trong localStorage đã nhập rồi thì trang Lịch không hỏi lại nữa
+        if (current && localSets.includes(current.d)) markImported(current.d);
         window.dispatchEvent(new Event(DATA_CHANGED_EVENT));
       }
     } catch (err) {

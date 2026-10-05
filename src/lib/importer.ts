@@ -484,3 +484,14 @@ export function fingerprint(d: Dataset): string {
   for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
   return (h >>> 0).toString(36);
 }
+
+/** Khoá localStorage ghi nhớ bộ dữ liệu không cần hỏi import nữa (người dùng từ chối hoặc đã nhập xong) */
+export const dismissKey = (fp: string) => `import-dismissed-${fp}`;
+
+export function markImported(d: Dataset) {
+  try {
+    localStorage.setItem(dismissKey(fingerprint(d)), "1");
+  } catch {
+    // trình duyệt chặn localStorage
+  }
+}

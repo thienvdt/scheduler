@@ -2,13 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { buildItems, DEFAULT_BELLS, fingerprint, parseBells, readLocalStorage, scanStorage, timetableScore } from "@/lib/importer";
+import { buildItems, DEFAULT_BELLS, dismissKey, fingerprint, parseBells, readLocalStorage, scanStorage, timetableScore } from "@/lib/importer";
 import { IMPORT_PICK } from "@/lib/importBridge";
 import { useAuth } from "./AuthProvider";
 import { TOUR_DONE_EVENT, tourDone } from "./Tour";
 import { Button, Modal } from "./ui";
 
-const dismissKey = (fp: string) => `import-dismissed-${fp}`;
 /** Đã hỏi trong phiên này ("Để sau") – không hỏi lại cho đến lần mở trình duyệt sau */
 const LATER_KEY = "import-later";
 
