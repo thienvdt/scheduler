@@ -17,6 +17,12 @@ import type {
 } from "@/shared/types";
 
 /** Phát ra khi API trả 401 (hết phiên đăng nhập) để giao diện quay về màn hình đăng nhập. */
+export interface SampleCounts {
+  people: number;
+  rooms: number;
+  sessions: number;
+}
+
 export const AUTH_REQUIRED_EVENT = "lich-giang:auth-required";
 
 export class ApiRequestError extends Error {
@@ -62,6 +68,8 @@ export const api = {
   settings: {
     get: () => request<Settings>("/settings"),
     update: (input: Partial<Settings> & { add_templates?: boolean }) => request<Settings>("/settings", send("PUT", input)),
+    sampleCounts: () => request<SampleCounts>("/settings/sample"),
+    sample: (action: "load" | "clear") => request<SampleCounts>("/settings/sample", send("POST", { action })),
   },
   users: {
     list: () => request<User[]>("/users"),

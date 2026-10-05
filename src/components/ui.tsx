@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { useEffect, type ButtonHTMLAttributes, type HTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 
 export function cn(...classes: (string | false | null | undefined)[]) {
   return classes.filter(Boolean).join(" ");
 }
 
-export function GlassCard({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn("glass rounded-2xl", className)}>{children}</div>;
+export function GlassCard({ className, children, ...props }: HTMLAttributes<HTMLDivElement> & { children: ReactNode }) {
+  return (
+    <div {...props} className={cn("glass rounded-2xl", className)}>
+      {children}
+    </div>
+  );
 }
 
 type Variant = "primary" | "ghost" | "danger";

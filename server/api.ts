@@ -11,6 +11,7 @@ import { isValidTime } from "./time";
 import { handleAuth, handleUsers, requireAdmin, requireUser } from "./auth";
 import { createSession, deleteSession, listSessions, parseKind, updateSession } from "./sessions";
 import { handleSettings } from "./settings";
+import { handleSample } from "./sample";
 import { HttpError, json, optString, readBody, reqString, type Env } from "./http";
 
 export type { Env };
@@ -243,6 +244,7 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     const user = await requireUser(env, request);
     if (resource === "users") return await handleUsers(env, request, id, user);
     if (resource === "settings" && !id) return await handleSettings(env, request, user);
+    if (resource === "settings" && id === "sample") return await handleSample(env, request, user);
     if (method !== "GET" && (resource === "teachers" || resource === "rooms" || resource === "templates")) {
       requireAdmin(user);
     }

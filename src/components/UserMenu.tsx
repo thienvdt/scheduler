@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { MIN_PASSWORD_LENGTH } from "@/shared/types";
 import { api } from "@/lib/api";
 import { useAuth } from "./AuthProvider";
+import { TOUR_EVENT, TOUR_PENDING } from "./Tour";
 import { Alert, Button, Field, Input, Modal } from "./ui";
 
 export function UserMenu() {
   const { user, isAdmin, logout, terms } = useAuth();
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
   const [pwOpen, setPwOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -22,7 +26,7 @@ export function UserMenu() {
   const initial = user.display_name.split(" ").pop()?.[0]?.toUpperCase() ?? "?";
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative" data-tour="usermenu">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -51,6 +55,21 @@ export function UserMenu() {
             }}
           >
             🔑 Đổi mật khẩu
+          </button>
+          <button
+            role="menuitem"
+            className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-white/10"
+            onClick={() => {
+              setOpen(false);
+              // Tour nằm ở trang Lịch: đang ở trang khác thì chuyển về và tự mở
+              if (pathname === "/") return window.dispatchEvent(new Event(TOUR_EVENT));
+              try {
+                sessionStorage.setItem(TOUR_PENDING, "1");
+              } catch {}
+              router.push("/");
+            }}
+          >
+            📘 Hướng dẫn sử dụng
           </button>
           <button role="menuitem" className="w-full rounded-xl px-3 py-2 text-left text-sm text-rose-200 hover:bg-white/10" onClick={logout}>
             ↩ Đăng xuất

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useResource } from "@/lib/useResource";
+import type { SampleCounts } from "@/lib/api";
 import type { ProfileId } from "@/shared/types";
 import { PROFILES } from "@/shared/profiles";
 import { api } from "@/lib/api";
@@ -14,6 +16,29 @@ export default function SettingsPage() {
   const [addTemplates, setAddTemplates] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; tone: "error" | "info" } | null>(null);
+  const sample = useResource(api.settings.sampleCounts, { people: 0, rooms: 0, sessions: 0 } as SampleCounts);
+  const [sampleBusy, setSampleBusy] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+
+  async function runSample(action: "load" | "clear") {
+    setSampleBusy(true);
+    setMessage(null);
+    try {
+      const c = await api.settings.sample(action);
+      sample.mutate(() => c);
+      setConfirmClear(false);
+      setMessage({
+        text: action === "load"
+          ? `Đã nạp dữ liệu mẫu: ${c.people} ${PROFILES[settings.profile].people.toLowerCase()}, ${c.rooms} ${PROFILES[settings.profile].room.toLowerCase()}, ${c.sessions} lịch trong tuần này và các tuần tới.`
+          : "Đã xoá toàn bộ dữ liệu mẫu.",
+        tone: "info",
+      });
+    } catch (err) {
+      setMessage({ text: (err as Error).message, tone: "error" });
+    } finally {
+      setSampleBusy(false);
+    }
+  }
 
   if (!isAdmin) return <Alert>Chỉ quản trị viên mới xem được trang này.</Alert>;
 
@@ -61,6 +86,43 @@ export default function SettingsPage() {
           <Input value={orgName} placeholder={next.appName} maxLength={100} onChange={(e) => setOrgName(e.target.value)} />
         </Field>
         <p className="mt-2 text-xs text-white/50">Hiện trên thanh điều hướng, màn hình đăng nhập và tên tab. Để trống: “{next.appName}”.</p>
+      </GlassCard>
+
+      <GlassCard className="mb-4 flex flex-col gap-3 p-5" >
+        <div>
+          <h2 className="text-lg font-semibold">Dữ liệu mẫu</h2>
+          <p className="mt-1 text-sm text-white/60">
+            Nạp người, phòng và lịch ví dụ ({PROFILES[settings.profile].label.toLowerCase()}) để thử app ngay. Lịch được đặt vào tuần này và
+            lặp vài tuần tới. Dữ liệu mẫu có mã riêng nên xoá sạch được bất cứ lúc nào, không ảnh hưởng dữ liệu thật.
+          </p>
+        </div>
+        <div className="text-sm text-white/70" id="sample-status">
+          {sample.loading
+            ? "Đang kiểm tra…"
+            : sample.data.sessions
+            ? `Đang có: ${sample.data.people} người · ${sample.data.rooms} phòng · ${sample.data.sessions} lịch mẫu`
+            : "Chưa có dữ liệu mẫu."}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="primary" disabled={sampleBusy} onClick={() => runSample("load")} id="load-sample">
+            {sampleBusy ? "Đang xử lý…" : sample.data.sessions ? "Nạp lại dữ liệu mẫu" : "Nạp dữ liệu mẫu"}
+          </Button>
+          {sample.data.sessions > 0 &&
+            (confirmClear ? (
+              <>
+                <Button type="button" variant="danger" disabled={sampleBusy} onClick={() => runSample("clear")}>
+                  Xác nhận xoá dữ liệu mẫu
+                </Button>
+                <Button type="button" onClick={() => setConfirmClear(false)}>
+                  Giữ lại
+                </Button>
+              </>
+            ) : (
+              <Button type="button" variant="danger" onClick={() => setConfirmClear(true)}>
+                Xoá dữ liệu mẫu
+              </Button>
+            ))}
+        </div>
       </GlassCard>
 
       <h2 className="mb-3 text-lg font-semibold">Loại hình sử dụng</h2>

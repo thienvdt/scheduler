@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import type { Room, Session, Teacher, Template } from "@/shared/types";
 import { KIND_META } from "@/shared/types";
@@ -18,6 +18,7 @@ import { DAY_END, WeekCalendar, type SessionChange } from "@/components/WeekCale
 import { SessionDialog, type SessionDraft } from "@/components/SessionDialog";
 import { VoiceCommand } from "@/components/VoiceCommand";
 import type { ParsedCommand } from "@/lib/voiceParser";
+import { DATA_CHANGED_EVENT, Tour } from "@/components/Tour";
 
 type View = "week" | "list";
 
@@ -52,7 +53,7 @@ export default function CalendarPage() {
 
   const teachersRes = useResource(api.teachers.list, [] as Teacher[]);
   const roomsRes = useResource(api.rooms.list, [] as Room[]);
-  const { data: templates } = useResource(api.templates.list, [] as Template[]);
+  const { data: templates, reload: reloadTemplates } = useResource(api.templates.list, [] as Template[]);
   const fetchSessions = useCallback(
     () =>
       api.sessions.list({
@@ -71,6 +72,20 @@ export default function CalendarPage() {
     mutate: mutateSessions,
   } = useResource(fetchSessions, [] as Session[]);
   const teachers = teachersRes.data;
+  const { reload: reloadTeachers } = teachersRes;
+  const { reload: reloadRooms } = roomsRes;
+
+  // Sau khi nạp dữ liệu mẫu (từ tour hoặc nút bên dưới) thì tải lại mọi thứ
+  useEffect(() => {
+    const reloadAll = () => {
+      reloadTeachers();
+      reloadRooms();
+      reloadTemplates();
+      reloadSessions();
+    };
+    window.addEventListener(DATA_CHANGED_EVENT, reloadAll);
+    return () => window.removeEventListener(DATA_CHANGED_EVENT, reloadAll);
+  }, [reloadTeachers, reloadRooms, reloadTemplates, reloadSessions]);
   const rooms = roomsRes.data;
   const error = teachersRes.error ?? roomsRes.error ?? sessionsError;
 
@@ -180,6 +195,21 @@ export default function CalendarPage() {
     });
   }
 
+  const [sampleBusy, setSampleBusy] = useState(false);
+  async function loadSample() {
+    setSampleBusy(true);
+    try {
+      await api.settings.sample("load");
+      setWeekStart(startOfWeek(today()));
+      window.dispatchEvent(new Event(DATA_CHANGED_EVENT));
+      setToast({ message: "Đã nạp dữ liệu mẫu. Xoá được trong Cài đặt.", tone: "info" });
+    } catch (err) {
+      setToast({ message: (err as Error).message, tone: "error" });
+    } finally {
+      setSampleBusy(false);
+    }
+  }
+
   const hasData = teachers.length > 0 && rooms.length > 0;
   const ready = hasData && canBook;
   const metaLoading = teachersRes.loading || roomsRes.loading;
@@ -191,23 +221,23 @@ export default function CalendarPage() {
         subtitle={`Tuần ${formatDayMonth(weekStart)} – ${formatDayMonth(weekEnd)}/${weekEnd.slice(0, 4)}`}
         actions={
           <>
-            <Button onClick={() => setVoiceOpen(true)} disabled={!ready} title="Đặt lịch bằng giọng nói">
+            <Button onClick={() => setVoiceOpen(true)} disabled={!ready} title="Đặt lịch bằng giọng nói" data-tour="voice">
               🎤 Giọng nói
             </Button>
-            <Button onClick={() => setFinder({})} disabled={!ready}>
+            <Button onClick={() => setFinder({})} disabled={!ready} data-tour="finder">
               🔎 Tìm giờ trống
             </Button>
-            <Button onClick={() => setPickerOpen(true)} disabled={!ready || templates.length === 0}>
+            <Button onClick={() => setPickerOpen(true)} disabled={!ready || templates.length === 0} data-tour="template">
               📋 Từ mẫu
             </Button>
-            <Button variant="primary" onClick={() => openNew(defaultDate(), "07:00")} disabled={!ready}>
+            <Button variant="primary" onClick={() => openNew(defaultDate(), "07:00")} disabled={!ready} data-tour="new">
               + Đặt lịch
             </Button>
           </>
         }
       />
 
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4" data-tour="stats">
         {[
           { label: terms.primaryLabel, value: stats.teaching },
           { label: terms.otherLabel, value: stats.events },
@@ -221,7 +251,7 @@ export default function CalendarPage() {
         ))}
       </div>
 
-      <GlassCard className="mb-4 flex flex-wrap items-center gap-2 p-3">
+      <GlassCard className="mb-4 flex flex-wrap items-center gap-2 p-3" data-tour="toolbar">
         <div className="flex rounded-xl border border-white/15 bg-white/5 p-0.5" role="group" aria-label="Chế độ xem">
           {(["week", "list"] as const).map((v) => (
             <button
@@ -299,10 +329,20 @@ export default function CalendarPage() {
               {terms.room.toLowerCase()}
             </Link>{" "}
             trước khi đặt lịch.
+            {isAdmin && (
+              <>
+                {" "}Hoặc{" "}
+                <button type="button" className="font-semibold underline" onClick={loadSample} disabled={sampleBusy} id="empty-load-sample">
+                  {sampleBusy ? "đang nạp dữ liệu mẫu…" : "nạp dữ liệu mẫu"}
+                </button>{" "}
+                để thử ngay.
+              </>
+            )}
           </Alert>
         </div>
       )}
 
+      <div data-tour="calendar" className="sm:scroll-mt-28">
       {view === "week" ? (
         <WeekCalendar
           weekStart={weekStart}
@@ -320,6 +360,9 @@ export default function CalendarPage() {
           onAdd={ready ? (date) => openNew(date, "07:00") : undefined}
         />
       )}
+      </div>
+
+      {!metaLoading && <Tour hasData={hasData} />}
 
       {exportOpen && (
         <ExportDialog

@@ -20,6 +20,12 @@ dùng cho họp online, đi công tác. Quản trị viên có thể đánh dấ
 
 ## Tính năng
 
+- **Hướng dẫn ngay trên trang:** lần đầu đăng nhập, app tự mở tour 12 bước – làm nổi bật từng nút (menu, Đặt lịch, Từ mẫu,
+  Giọng nói, Tìm giờ trống, lịch tuần, bộ lọc…) kèm bong bóng giải thích; phím ← → / Esc. Mở lại bất cứ lúc nào ở menu tài
+  khoản → **📘 Hướng dẫn sử dụng** (hoặc thêm `#tour` vào đường dẫn).
+- **Dữ liệu mẫu:** quản trị viên bấm *Nạp dữ liệu mẫu* (ngay ở bước đầu của tour, ở thông báo khi hệ thống còn trống, hoặc
+  trong *Cài đặt*) để có sẵn người, phòng và ~35 lịch theo loại hình đang dùng (trường học / doanh nghiệp / văn phòng), đặt vào
+  tuần hiện tại và lặp vài tuần. Dữ liệu mẫu có mã `mau-…` nên *Xoá dữ liệu mẫu* trong Cài đặt xoá sạch, không đụng dữ liệu thật.
 - **Lịch tuần** và **dạng danh sách** (tự dùng danh sách trên điện thoại), lọc theo giảng viên, phòng, loại lịch.
 - **Loại lịch:** giảng dạy, thực hành, cuộc họp, seminar, coi thi, bảo vệ, tiếp sinh viên, khác.
 - **Mẫu lịch** (trang *Mẫu lịch*): 8 mẫu có sẵn (họp bộ môn, họp khoa, seminar, coi thi, bảo vệ đồ án…), người dùng tự tạo / sửa /
@@ -89,6 +95,7 @@ seed/seed.sql       Dữ liệu mẫu
 | POST | `/api/auth/setup` · `login` · `logout` · `password` | Tạo quản trị viên đầu tiên / đăng nhập / đăng xuất / đổi mật khẩu |
 | GET/POST, PUT/DELETE | `/api/users`, `/api/users/:id` | Quản lý tài khoản (quản trị viên) |
 | GET/PUT | `/api/settings` | Loại hình, tên đơn vị (sửa: quản trị viên; `add_templates` thêm mẫu mặc định) |
+| GET/POST | `/api/settings/sample` | Số bản ghi mẫu / `{"action":"load"}` nạp (lại) hoặc `{"action":"clear"}` xoá dữ liệu mẫu (quản trị viên) |
 | GET/POST | `/api/teachers` | Danh sách / thêm giảng viên |
 | PUT/DELETE | `/api/teachers/:id` | Sửa / xoá (409 nếu đang có lịch) |
 | GET/POST | `/api/rooms` | Danh sách / thêm phòng |

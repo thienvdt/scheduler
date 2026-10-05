@@ -34,7 +34,7 @@ export function Nav() {
           </span>
           <span className="max-w-[12rem] truncate">{appName}</span>
         </Link>
-        <div className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto px-1 sm:order-2 sm:ml-auto sm:w-auto">
+        <div className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto px-1 sm:order-2 sm:ml-auto sm:w-auto" data-tour="nav">
           {links.filter((l) => !l.adminOnly || isAdmin).map((l) => (
             <Link
               key={l.href}
@@ -49,7 +49,9 @@ export function Nav() {
           ))}
         </div>
         <div className="order-2 ml-auto flex items-center gap-2 sm:order-3 sm:ml-0">
-          <InstallButton />
+          <span data-tour="install" className="inline-flex">
+            <InstallButton />
+          </span>
           <UserMenu />
         </div>
       </nav>
