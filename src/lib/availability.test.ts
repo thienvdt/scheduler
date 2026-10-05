@@ -52,6 +52,12 @@ describe("findFreeSlots", () => {
     expect(findFreeSlots(sessions, { ...base, teacherIds: ["an"], roomIds: ["a101"] })).toEqual([]);
   });
 
+  it("treats virtual rooms (online / off-site) as always free", () => {
+    const sessions = [s({ teacher_id: "x", room_id: "online", start_time: "07:00", end_time: "12:00" })];
+    const slots = findFreeSlots(sessions, { ...base, teacherIds: ["an"], roomIds: ["online"], alwaysFreeRoomIds: ["online"] });
+    expect(slots[0].start_time).toBe("07:00");
+  });
+
   it("ignores cancelled sessions, past times and respects the time window", () => {
     const sessions = [s({ status: "cancelled", start_time: "07:00", end_time: "12:00" })];
     expect(starts({ ...base, now: { date: "2026-10-06", minutes: 10 * 60 + 10 } }, sessions)).toEqual(["10:30", "11:00"]);

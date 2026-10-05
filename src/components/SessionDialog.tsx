@@ -2,10 +2,11 @@
 
 import { useState, type FormEvent } from "react";
 import type { Conflict, EventKind, Room, Session, Teacher, Template } from "@/shared/types";
-import { EVENT_KINDS, KIND_META, MAX_REPEAT_WEEKS } from "@/shared/types";
+import { KIND_META, MAX_REPEAT_WEEKS } from "@/shared/types";
+import { kindOptions } from "@/shared/profiles";
 import { api, ApiRequestError } from "@/lib/api";
 import { formatFull, timeToMinutes } from "@/lib/date";
-import { endAfter, isTeachingKind, templateIcon } from "@/lib/templates";
+import { endAfter, templateIcon } from "@/lib/templates";
 import { Alert, Button, cn, Field, Input, Modal, Select, Textarea } from "./ui";
 import { useAuth } from "./AuthProvider";
 import { ParticipantPicker } from "./ParticipantPicker";
@@ -42,7 +43,10 @@ interface FormState {
   participant_ids: string[];
 }
 
-function initialForm(session: Session | null, draft: SessionDraft | null): FormState {
+// Loại lịch thường chỉ có một người (không hiện ô người tham dự trừ khi đã có)
+const SOLO_KINDS: EventKind[] = ["lecture", "practice", "office_hours", "duty"];
+
+function initialForm(session: Session | null, draft: SessionDraft | null, defaultKind: EventKind): FormState {
   if (session) {
     return {
       title: session.title,
@@ -68,7 +72,7 @@ function initialForm(session: Session | null, draft: SessionDraft | null): FormS
     end_time: draft?.end_time ?? "09:00",
     note: draft?.note ?? "",
     repeat_weeks: draft?.repeat_weeks ?? 1,
-    kind: draft?.kind ?? "lecture",
+    kind: draft?.kind ?? defaultKind,
     participant_ids: draft?.participant_ids ?? [],
   };
 }
@@ -93,9 +97,9 @@ export function SessionDialog({
   /** Mở công cụ tìm giờ trống với người/phòng/thời lượng của form */
   onFindSlot?: (prefill: { teacher_ids: string[]; room_id: string; duration: number; date: string }) => void;
 }) {
-  const { isAdmin, canEdit, user } = useAuth();
+  const { isAdmin, canEdit, user, terms } = useAuth();
   const [form, setForm] = useState<FormState>(() => {
-    const f = initialForm(session, draft);
+    const f = initialForm(session, draft, terms.defaultKind);
     return !session && !isAdmin && user.teacher_id ? { ...f, teacher_id: user.teacher_id } : f;
   });
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +110,7 @@ export function SessionDialog({
   const isEdit = session !== null;
   const cancelled = session?.status === "cancelled";
   const readOnly = isEdit && !canEdit(session);
-  // Giảng viên chỉ đặt lịch do chính mình chủ trì
+  // Người dùng không phải quản trị chỉ đặt lịch do chính mình chủ trì
   const hostLocked = !isAdmin;
 
   async function run(action: () => Promise<unknown>) {
@@ -161,7 +165,9 @@ export function SessionDialog({
     });
   }
 
-  const teaching = isTeachingKind(form.kind);
+  const primary = terms.primaryKinds.includes(form.kind);
+  const showGroup = terms.groupKinds.includes(form.kind) || !!form.class_name;
+  const showParticipants = !SOLO_KINDS.includes(form.kind) || form.participant_ids.length > 0;
 
   return (
     <Modal
@@ -232,17 +238,17 @@ export function SessionDialog({
 
         <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-4">
           <div className="grid gap-4 sm:grid-cols-[1fr_11rem]">
-            <Field label={teaching ? "Môn học *" : "Tiêu đề *"}>
+            <Field label={primary ? `${terms.primaryTitleLabel} *` : "Tiêu đề *"}>
               <Input
                 required
                 value={form.title}
                 onChange={(e) => set("title", e.target.value)}
-                placeholder={teaching ? "VD: Lập trình Web" : "VD: Họp bộ môn tháng 10"}
+                placeholder={primary ? terms.primaryTitlePlaceholder : terms.titlePlaceholder}
               />
             </Field>
             <Field label="Loại lịch">
               <Select value={form.kind} onChange={(e) => set("kind", e.target.value as EventKind)}>
-                {EVENT_KINDS.map((k) => (
+                {kindOptions(terms, session?.kind).map((k) => (
                   <option key={k} value={k}>
                     {KIND_META[k].icon} {KIND_META[k].label}
                   </option>
@@ -250,16 +256,16 @@ export function SessionDialog({
               </Select>
             </Field>
           </div>
-          {(teaching || form.kind === "exam" || form.class_name) && (
-            <Field label="Lớp">
-              <Input value={form.class_name} onChange={(e) => set("class_name", e.target.value)} placeholder="VD: CNTT-K66A" />
+          {showGroup && (
+            <Field label={terms.group}>
+              <Input value={form.class_name} onChange={(e) => set("class_name", e.target.value)} placeholder={terms.groupPlaceholder} />
             </Field>
           )}
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={teaching ? "Giảng viên *" : "Chủ trì / Phụ trách *"}>
+            <Field label={primary && terms.id === "education" ? `${terms.person} *` : "Chủ trì / Phụ trách *"}>
               <Select required disabled={hostLocked} value={form.teacher_id} onChange={(e) => set("teacher_id", e.target.value)}>
-                <option value="">— Chọn giảng viên —</option>
+                <option value="">— Chọn {terms.person.toLowerCase()} —</option>
                 {teachers.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
@@ -304,7 +310,7 @@ export function SessionDialog({
             </Field>
           )}
 
-          {(!teaching || form.participant_ids.length > 0) && (
+          {showParticipants && (
             <Field label={`Người tham dự${form.participant_ids.length ? ` (${form.participant_ids.length})` : ""}`}>
               <ParticipantPicker
                 teachers={teachers}
@@ -316,7 +322,7 @@ export function SessionDialog({
             </Field>
           )}
 
-          <Field label={teaching ? "Ghi chú" : "Nội dung / Ghi chú"}>
+          <Field label={primary && terms.id === "education" ? "Ghi chú" : "Nội dung / Ghi chú"}>
             <Textarea
               value={form.note}
               onChange={(e) => set("note", e.target.value)}

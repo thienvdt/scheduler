@@ -30,7 +30,7 @@ function suggestUsername(name: string): string {
 }
 
 export default function UsersPage() {
-  const { isAdmin, user: me } = useAuth();
+  const { isAdmin, user: me, terms } = useAuth();
   const { data: users, loading, error: loadError, reload } = useResource(api.users.list, [] as User[]);
   const { data: teachers } = useResource(api.teachers.list, [] as Teacher[]);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +96,7 @@ export default function UsersPage() {
     <>
       <PageHeader
         title="Tài khoản"
-        subtitle="Quản trị viên sửa được mọi thứ. Giảng viên xem toàn bộ lịch nhưng chỉ tạo/sửa lịch do mình chủ trì."
+        subtitle={`Quản trị viên sửa được mọi thứ. ${terms.person} xem toàn bộ lịch nhưng chỉ tạo/sửa lịch do mình chủ trì.`}
         actions={
           <Button variant="primary" onClick={() => openCreate()}>
             + Tạo tài khoản
@@ -112,7 +112,7 @@ export default function UsersPage() {
 
       {withoutAccount.length > 0 && (
         <GlassCard className="mb-4 p-4">
-          <div className="mb-2 text-sm text-white/70">Giảng viên chưa có tài khoản – bấm để tạo nhanh:</div>
+          <div className="mb-2 text-sm text-white/70">{terms.people} chưa có tài khoản – bấm để tạo nhanh:</div>
           <div className="flex flex-wrap gap-2">
             {withoutAccount.map((t) => (
               <Button key={t.id} className="px-3 py-1 text-xs" onClick={() => openCreate(t)}>
@@ -130,7 +130,7 @@ export default function UsersPage() {
             <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wide text-white/60">
               <th className="px-4 py-3 font-medium">Tài khoản</th>
               <th className="px-3 py-3 font-medium">Vai trò</th>
-              <th className="px-3 py-3 font-medium">Giảng viên liên kết</th>
+              <th className="px-3 py-3 font-medium">{terms.person} liên kết</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -157,7 +157,7 @@ export default function UsersPage() {
                       u.role === "admin" ? "border-fuchsia-300/40 bg-fuchsia-400/15" : "border-white/15 bg-white/10"
                     }`}
                   >
-                    {u.role === "admin" ? "Quản trị viên" : "Giảng viên"}
+                    {u.role === "admin" ? "Quản trị viên" : terms.person}
                   </span>
                 </td>
                 <td className="px-3 py-3 text-white/80">
@@ -204,12 +204,12 @@ export default function UsersPage() {
               </Field>
               <Field label="Vai trò">
                 <Select value={form.role} onChange={(e) => set("role", e.target.value as Role)}>
-                  <option value="teacher">Giảng viên</option>
+                  <option value="teacher">{terms.person}</option>
                   <option value="admin">Quản trị viên</option>
                 </Select>
               </Field>
             </div>
-            <Field label={form.role === "teacher" ? "Giảng viên liên kết *" : "Giảng viên liên kết (nếu có)"}>
+            <Field label={form.role === "teacher" ? `${terms.person} liên kết *` : `${terms.person} liên kết (nếu có)`}>
               <Select required={form.role === "teacher"} value={form.teacher_id} onChange={(e) => set("teacher_id", e.target.value)}>
                 <option value="">— Không —</option>
                 {teachers.map((t) => (

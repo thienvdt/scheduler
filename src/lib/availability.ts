@@ -14,6 +14,8 @@ export interface SlotQuery {
   teacherIds: string[];
   /** Các phòng có thể dùng (đã lọc theo sức chứa…) */
   roomIds: string[];
+  /** Phòng ảo (Online, bên ngoài) – luôn trống */
+  alwaysFreeRoomIds?: string[];
   /** Bỏ qua các giờ đã qua */
   now?: { date: string; minutes: number };
 }
@@ -52,7 +54,7 @@ export function findFreeSlots(sessions: Session[], q: SlotQuery, limit = 200): S
       if (q.now && date === q.now.date && start < q.now.minutes) continue;
       const end = start + q.duration;
       if (!q.teacherIds.every((t) => isFree(people.get(`${date}|${t}`), start, end))) continue;
-      const freeRoomIds = q.roomIds.filter((r) => isFree(rooms.get(`${date}|${r}`), start, end));
+      const freeRoomIds = q.roomIds.filter((r) => q.alwaysFreeRoomIds?.includes(r) || isFree(rooms.get(`${date}|${r}`), start, end));
       if (!freeRoomIds.length) continue;
       slots.push({ date, start_time: minutesToTime(start), end_time: minutesToTime(end), freeRoomIds });
       if (slots.length >= limit) return slots;

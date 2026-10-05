@@ -99,6 +99,9 @@ export async function findConflicts(
 ): Promise<Conflict[]> {
   const people = [s.teacher_id, ...s.participant_ids];
   const peopleJson = JSON.stringify(people);
+  // Phòng ảo (Online, bên ngoài) không bị trùng phòng – chỉ kiểm tra trùng người
+  const room = await env.DB.prepare("SELECT is_virtual FROM rooms WHERE id = ?").bind(s.room_id).first<{ is_virtual: number }>();
+  const roomToCheck = room?.is_virtual ? "" : s.room_id;
   const { results } = await env.DB.prepare(
     `${SESSION_SELECT}
      WHERE s.date = ? AND s.status = 'scheduled'
@@ -111,7 +114,7 @@ export async function findConflicts(
        )
      ORDER BY s.start_time`,
   )
-    .bind(s.date, s.end_time, s.start_time, excludeId ?? "", s.room_id, peopleJson, peopleJson)
+    .bind(s.date, s.end_time, s.start_time, excludeId ?? "", roomToCheck, peopleJson, peopleJson)
     .all<SessionRow>();
   if (!results.length) return [];
 
@@ -129,7 +132,7 @@ export async function findConflicts(
         conflicts.push({ date: s.date, kind: "teacher", session: other, teacher_id: person, teacher_name: nameOf.get(person) });
       }
     }
-    if (other.room_id === s.room_id) conflicts.push({ date: s.date, kind: "room", session: other });
+    if (roomToCheck && other.room_id === roomToCheck) conflicts.push({ date: s.date, kind: "room", session: other });
   }
   return conflicts;
 }

@@ -1,12 +1,12 @@
 import type { EventKind, Session, Teacher } from "@/shared/types";
 import { EVENT_KINDS, KIND_META } from "@/shared/types";
 import { timeToMinutes } from "./date";
-import { isTeachingKind } from "./templates";
+import type { Profile } from "@/shared/profiles";
 
 export interface TeacherWorkload {
   teacher: Pick<Teacher, "id" | "name" | "department" | "color">;
-  teachingSessions: number;
-  teachingMinutes: number;
+  primarySessions: number;
+  primaryMinutes: number;
   otherSessions: number;
   otherMinutes: number;
   cancelled: number;
@@ -16,10 +16,11 @@ export interface TeacherWorkload {
 const emptyKinds = () => Object.fromEntries(EVENT_KINDS.map((k) => [k, 0])) as Record<EventKind, number>;
 
 /**
- * Tổng hợp số buổi và số phút theo giảng viên – tính cho cả người chủ trì và người tham dự;
+ * Tổng hợp số buổi và số phút theo người – tính cho cả người chủ trì và người tham dự;
+ * tách "công việc chính" (vd. giảng dạy, gặp khách hàng) với các lịch khác;
  * buổi đã huỷ chỉ được đếm, không tính giờ.
  */
-export function buildWorkload(sessions: Session[], teachers: Teacher[]): TeacherWorkload[] {
+export function buildWorkload(sessions: Session[], teachers: Teacher[], primaryKinds: EventKind[]): TeacherWorkload[] {
   const rows = new Map<string, TeacherWorkload>();
   const rowFor = (s: Session, teacherId: string) => {
     let row = rows.get(teacherId);
@@ -33,8 +34,8 @@ export function buildWorkload(sessions: Session[], teachers: Teacher[]): Teacher
           department: t?.department ?? null,
           color: t?.color ?? (isHost ? s.teacher_color : undefined) ?? "#60a5fa",
         },
-        teachingSessions: 0,
-        teachingMinutes: 0,
+        primarySessions: 0,
+        primaryMinutes: 0,
         otherSessions: 0,
         otherMinutes: 0,
         cancelled: 0,
@@ -54,9 +55,9 @@ export function buildWorkload(sessions: Session[], teachers: Teacher[]): Teacher
         continue;
       }
       row.minutesByKind[s.kind] = (row.minutesByKind[s.kind] ?? 0) + minutes;
-      if (isTeachingKind(s.kind)) {
-        row.teachingSessions++;
-        row.teachingMinutes += minutes;
+      if (primaryKinds.includes(s.kind)) {
+        row.primarySessions++;
+        row.primaryMinutes += minutes;
       } else {
         row.otherSessions++;
         row.otherMinutes += minutes;
@@ -65,7 +66,7 @@ export function buildWorkload(sessions: Session[], teachers: Teacher[]): Teacher
   }
 
   return [...rows.values()].sort(
-    (a, b) => b.teachingMinutes + b.otherMinutes - (a.teachingMinutes + a.otherMinutes) || a.teacher.name.localeCompare(b.teacher.name, "vi"),
+    (a, b) => b.primaryMinutes + b.otherMinutes - (a.primaryMinutes + a.otherMinutes) || a.teacher.name.localeCompare(b.teacher.name, "vi"),
   );
 }
 
@@ -77,15 +78,17 @@ function csvCell(value: string | number | null): string {
 }
 
 /** CSV có BOM UTF-8 để Excel hiển thị đúng tiếng Việt. */
-export function workloadCsv(rows: TeacherWorkload[], range: { from: string; to: string }): string {
+export function workloadCsv(rows: TeacherWorkload[], range: { from: string; to: string }, terms: Profile): string {
+  // Cột theo loại lịch: các loại của loại hình + loại khác nếu có dữ liệu
+  const kinds = EVENT_KINDS.filter((k) => terms.kinds.includes(k) || rows.some((r) => r.minutesByKind[k] > 0));
   const header = [
-    "Giảng viên",
-    "Khoa / Bộ môn",
-    "Số buổi giảng",
-    "Giờ giảng",
-    "Số buổi họp & sự kiện",
-    "Giờ họp & sự kiện",
-    ...EVENT_KINDS.map((k) => `Giờ ${KIND_META[k].label.toLowerCase()}`),
+    terms.person,
+    terms.department,
+    terms.primaryCountLabel,
+    terms.primaryHoursLabel,
+    terms.otherCountLabel,
+    terms.otherHoursLabel,
+    ...kinds.map((k) => `Giờ ${KIND_META[k].label.toLowerCase()}`),
     "Tổng giờ",
     "Số buổi đã huỷ",
   ];
@@ -95,12 +98,12 @@ export function workloadCsv(rows: TeacherWorkload[], range: { from: string; to: 
     ...rows.map((r) => [
       r.teacher.name,
       r.teacher.department,
-      r.teachingSessions,
-      hours(r.teachingMinutes),
+      r.primarySessions,
+      hours(r.primaryMinutes),
       r.otherSessions,
       hours(r.otherMinutes),
-      ...EVENT_KINDS.map((k) => hours(r.minutesByKind[k])),
-      hours(r.teachingMinutes + r.otherMinutes),
+      ...kinds.map((k) => hours(r.minutesByKind[k])),
+      hours(r.primaryMinutes + r.otherMinutes),
       r.cancelled,
     ]),
   ];

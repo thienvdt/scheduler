@@ -10,6 +10,7 @@ import { MAX_REPEAT_WEEKS } from "../src/shared/types";
 import { isValidTime } from "./time";
 import { handleAuth, handleUsers, requireAdmin, requireUser } from "./auth";
 import { createSession, deleteSession, listSessions, parseKind, updateSession } from "./sessions";
+import { handleSettings } from "./settings";
 import { HttpError, json, optString, readBody, reqString, type Env } from "./http";
 
 export type { Env };
@@ -60,6 +61,9 @@ async function updateTeacher(env: Env, request: Request, id: string) {
 // ---------- Phòng ----------
 
 function parseRoom(body: Record<string, unknown>): Required<RoomInput> {
+  if (body.is_virtual !== undefined && typeof body.is_virtual !== "boolean" && body.is_virtual !== 0 && body.is_virtual !== 1) {
+    throw new HttpError(400, "Trường is_virtual không hợp lệ");
+  }
   let capacity: number | null = null;
   if (body.capacity !== undefined && body.capacity !== null && body.capacity !== "") {
     capacity = Number(body.capacity);
@@ -71,6 +75,7 @@ function parseRoom(body: Record<string, unknown>): Required<RoomInput> {
     name: reqString(body.name, "name"),
     building: optString(body.building, "building", 200),
     capacity,
+    is_virtual: !!body.is_virtual,
     equipment: optString(body.equipment, "equipment", 500),
   };
 }
@@ -83,8 +88,8 @@ async function listRooms(env: Env) {
 async function createRoom(env: Env, request: Request) {
   const r = parseRoom(await readBody(request));
   const id = crypto.randomUUID();
-  await env.DB.prepare("INSERT INTO rooms (id, name, building, capacity, equipment) VALUES (?, ?, ?, ?, ?)")
-    .bind(id, r.name, r.building, r.capacity, r.equipment)
+  await env.DB.prepare("INSERT INTO rooms (id, name, building, capacity, equipment, is_virtual) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(id, r.name, r.building, r.capacity, r.equipment, r.is_virtual ? 1 : 0)
     .run();
   return json(await getById<Room>(env, "rooms", id), 201);
 }
@@ -92,8 +97,8 @@ async function createRoom(env: Env, request: Request) {
 async function updateRoom(env: Env, request: Request, id: string) {
   await mustExist(env, "rooms", id, "phòng");
   const r = parseRoom(await readBody(request));
-  await env.DB.prepare("UPDATE rooms SET name = ?, building = ?, capacity = ?, equipment = ? WHERE id = ?")
-    .bind(r.name, r.building, r.capacity, r.equipment, id)
+  await env.DB.prepare("UPDATE rooms SET name = ?, building = ?, capacity = ?, equipment = ?, is_virtual = ? WHERE id = ?")
+    .bind(r.name, r.building, r.capacity, r.equipment, r.is_virtual ? 1 : 0, id)
     .run();
   return json(await getById<Room>(env, "rooms", id));
 }
@@ -237,6 +242,7 @@ export async function handleApi(request: Request, env: Env): Promise<Response> {
     // Mọi API còn lại cần đăng nhập; xem: mọi tài khoản, sửa danh mục: chỉ quản trị viên
     const user = await requireUser(env, request);
     if (resource === "users") return await handleUsers(env, request, id, user);
+    if (resource === "settings" && !id) return await handleSettings(env, request, user);
     if (method !== "GET" && (resource === "teachers" || resource === "rooms" || resource === "templates")) {
       requireAdmin(user);
     }

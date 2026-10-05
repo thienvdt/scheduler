@@ -12,6 +12,8 @@ import type {
   AuthState,
   User,
   UserInput,
+  ProfileId,
+  Settings,
 } from "@/shared/types";
 
 /** Phát ra khi API trả 401 (hết phiên đăng nhập) để giao diện quay về màn hình đăng nhập. */
@@ -50,12 +52,16 @@ const send = (method: string, body?: unknown): RequestInit => ({
 export const api = {
   auth: {
     me: () => request<AuthState>("/auth/me"),
-    setup: (input: { username: string; display_name: string; password: string }) =>
+    setup: (input: { username: string; display_name: string; password: string; profile: ProfileId; org_name: string }) =>
       request<AuthState>("/auth/setup", send("POST", input)),
     login: (username: string, password: string) => request<AuthState>("/auth/login", send("POST", { username, password })),
     logout: () => request<void>("/auth/logout", send("POST")),
     changePassword: (current_password: string, new_password: string) =>
       request<void>("/auth/password", send("POST", { current_password, new_password })),
+  },
+  settings: {
+    get: () => request<Settings>("/settings"),
+    update: (input: Partial<Settings> & { add_templates?: boolean }) => request<Settings>("/settings", send("PUT", input)),
   },
   users: {
     list: () => request<User[]>("/users"),

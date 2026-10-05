@@ -9,6 +9,7 @@ import { formatDuration } from "@/lib/templates";
 import { useResource } from "@/lib/useResource";
 import { ParticipantPicker } from "./ParticipantPicker";
 import { Alert, Button, cn, Field, Input, Modal, Select } from "./ui";
+import { useTerms } from "./AuthProvider";
 
 export interface FinderPrefill {
   teacher_ids: string[];
@@ -59,6 +60,7 @@ export function FreeSlotFinder({
   onClose: () => void;
   onPick: (slot: PickedSlot) => void;
 }) {
+  const terms = useTerms();
   const [people, setPeople] = useState<string[]>(prefill?.teacher_ids ?? []);
   const [duration, setDuration] = useState(prefill?.duration ?? 60);
   const [range, setRange] = useState<(typeof RANGES)[number]["id"]>("this");
@@ -78,7 +80,10 @@ export function FreeSlotFinder({
 
   const candidateRooms = useMemo(() => {
     const min = Number(minCapacity) || 0;
-    const list = roomId ? rooms.filter((x) => x.id === roomId) : rooms.filter((x) => (x.capacity ?? Infinity) >= min);
+    // "Bất kỳ phòng nào" chỉ tính phòng thật; phòng ảo (Online…) phải chọn riêng
+    const list = roomId
+      ? rooms.filter((x) => x.id === roomId)
+      : rooms.filter((x) => !x.is_virtual && (x.capacity ?? Infinity) >= min);
     // Ưu tiên phòng vừa đủ chỗ
     return [...list].sort((a, b) => (a.capacity ?? 1e9) - (b.capacity ?? 1e9));
   }, [rooms, roomId, minCapacity]);
@@ -97,6 +102,7 @@ export function FreeSlotFinder({
       step: 30,
       teacherIds: people,
       roomIds: candidateRooms.map((x) => x.id),
+      alwaysFreeRoomIds: candidateRooms.filter((x) => x.is_virtual).map((x) => x.id),
       now: { date: toISODate(now), minutes: now.getHours() * 60 + now.getMinutes() },
     });
   }, [sessions, windowId, from, r.weeks, skipSunday, duration, people, candidateRooms]);
@@ -150,9 +156,9 @@ export function FreeSlotFinder({
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Phòng">
+          <Field label={terms.room}>
             <Select value={roomId} onChange={(e) => setRoomId(e.target.value)}>
-              <option value="">Bất kỳ phòng nào</option>
+              <option value="">Bất kỳ {terms.room.toLowerCase()} nào</option>
               {rooms.map((x) => (
                 <option key={x.id} value={x.id}>
                   {x.name}

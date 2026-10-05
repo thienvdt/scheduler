@@ -2,7 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import type { EventKind, Room, Teacher, Template } from "@/shared/types";
-import { EVENT_KINDS, KIND_META, MAX_REPEAT_WEEKS } from "@/shared/types";
+import { KIND_META, MAX_REPEAT_WEEKS } from "@/shared/types";
+import { kindOptions } from "@/shared/profiles";
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
 import { useAuth } from "@/components/AuthProvider";
@@ -38,7 +39,7 @@ const empty: TemplateForm = {
 const ICONS = ["👥", "🏛️", "🎤", "📝", "🎓", "💬", "📚", "🧪", "📌", "🗓️", "☕", "🧑‍🏫"];
 
 export default function TemplatesPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, terms } = useAuth();
   const { data: items, loading, error: loadError, reload } = useResource(api.templates.list, [] as Template[]);
   const { data: teachers } = useResource(api.teachers.list, [] as Teacher[]);
   const { data: rooms } = useResource(api.rooms.list, [] as Room[]);
@@ -219,7 +220,7 @@ export default function TemplatesPage() {
               </Field>
               <Field label="Loại lịch">
                 <Select value={form.kind} onChange={(e) => set("kind", e.target.value as EventKind)}>
-                  {EVENT_KINDS.map((k) => (
+                  {kindOptions(terms, editing?.kind).map((k) => (
                     <option key={k} value={k}>
                       {KIND_META[k].icon} {KIND_META[k].label}
                     </option>
@@ -287,7 +288,7 @@ export default function TemplatesPage() {
                   ))}
                 </Select>
               </Field>
-              <Field label="Phòng mặc định">
+              <Field label={`${terms.room} mặc định`}>
                 <Select value={form.room_id} onChange={(e) => set("room_id", e.target.value)}>
                   <option value="">— Không —</option>
                   {rooms.map((r) => (

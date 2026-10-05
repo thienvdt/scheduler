@@ -3,8 +3,8 @@
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import type { Room, Session, Teacher, Template } from "@/shared/types";
-import { EVENT_KINDS, KIND_META } from "@/shared/types";
-import { endAfter, isTeachingKind } from "@/lib/templates";
+import { KIND_META } from "@/shared/types";
+import { endAfter } from "@/lib/templates";
 import { TemplatePicker } from "@/components/TemplatePicker";
 import { AgendaList } from "@/components/AgendaList";
 import { ExportDialog } from "@/components/ExportDialog";
@@ -31,7 +31,7 @@ function subscribeSmall(cb: () => void) {
 type DialogState = { session: Session | null; draft: SessionDraft | null } | null;
 
 export default function CalendarPage() {
-  const { canBook, canEdit, isAdmin, user } = useAuth();
+  const { canBook, canEdit, isAdmin, user, terms } = useAuth();
   const [finder, setFinder] = useState<{ prefill?: FinderPrefill } | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: "error" | "info" } | null>(null);
   const closeToast = useCallback(() => setToast(null), []);
@@ -77,14 +77,14 @@ export default function CalendarPage() {
   const stats = useMemo(() => {
     const active = sessions.filter((s) => s.status === "scheduled");
     const minutes = active.reduce((sum, s) => sum + timeToMinutes(s.end_time) - timeToMinutes(s.start_time), 0);
-    const teaching = active.filter((s) => isTeachingKind(s.kind)).length;
+    const teaching = active.filter((s) => terms.primaryKinds.includes(s.kind)).length;
     return {
       teaching,
       events: active.length - teaching,
       hours: Math.round((minutes / 60) * 10) / 10,
       cancelled: sessions.length - active.length,
     };
-  }, [sessions]);
+  }, [sessions, terms]);
 
   function openNew(date = today(), start = "07:00") {
     const end = minutesToTime(Math.min(timeToMinutes(start) + 120, DAY_END));
@@ -132,7 +132,7 @@ export default function CalendarPage() {
         teacher_id: host,
         room_id: slot.room_id,
         participant_ids: others,
-        kind: others.length ? "meeting" : "lecture",
+        kind: others.length ? "meeting" : terms.defaultKind,
       },
     });
   }
@@ -187,7 +187,7 @@ export default function CalendarPage() {
   return (
     <>
       <PageHeader
-        title="Lịch giảng"
+        title={terms.calendarTitle}
         subtitle={`Tuần ${formatDayMonth(weekStart)} – ${formatDayMonth(weekEnd)}/${weekEnd.slice(0, 4)}`}
         actions={
           <>
@@ -209,8 +209,8 @@ export default function CalendarPage() {
 
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Buổi giảng", value: stats.teaching },
-          { label: "Họp & sự kiện", value: stats.events },
+          { label: terms.primaryLabel, value: stats.teaching },
+          { label: terms.otherLabel, value: stats.events },
           { label: "Tổng giờ", value: stats.hours },
           { label: "Đã huỷ", value: stats.cancelled },
         ].map((s) => (
@@ -248,8 +248,8 @@ export default function CalendarPage() {
           </Button>
         </div>
         <div className="ml-auto flex w-full flex-wrap gap-2 sm:w-auto">
-          <Select className="sm:w-56" value={teacherId} onChange={(e) => setTeacherId(e.target.value)} aria-label="Lọc theo giảng viên">
-            <option value="">Tất cả giảng viên</option>
+          <Select className="sm:w-56" value={teacherId} onChange={(e) => setTeacherId(e.target.value)} aria-label={`Lọc theo ${terms.person.toLowerCase()}`}>
+            <option value="">Tất cả {terms.people.toLowerCase()}</option>
             {teachers.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
@@ -258,14 +258,14 @@ export default function CalendarPage() {
           </Select>
           <Select className="sm:w-44" value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Lọc theo loại lịch">
             <option value="">Tất cả loại lịch</option>
-            {EVENT_KINDS.map((k) => (
+            {terms.kinds.map((k) => (
               <option key={k} value={k}>
                 {KIND_META[k].icon} {KIND_META[k].label}
               </option>
             ))}
           </Select>
           <Select className="sm:w-44" value={roomId} onChange={(e) => setRoomId(e.target.value)} aria-label="Lọc theo phòng">
-            <option value="">Tất cả phòng</option>
+            <option value="">Tất cả {terms.room.toLowerCase()}</option>
             {rooms.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.name}
@@ -283,15 +283,22 @@ export default function CalendarPage() {
 
       {hasData && !canBook && (
         <div className="mb-4">
-          <Alert tone="info">Tài khoản của bạn chưa được liên kết với hồ sơ giảng viên nên chỉ xem được lịch. Hãy liên hệ quản trị viên.</Alert>
+          <Alert tone="info">Tài khoản của bạn chưa được liên kết với hồ sơ {terms.person.toLowerCase()} nên chỉ xem được lịch. Hãy liên hệ quản trị viên.</Alert>
         </div>
       )}
 
       {!hasData && !metaLoading && !error && (
         <div className="mb-4">
           <Alert tone="info">
-            Hãy thêm ít nhất một <Link className="underline" href="/teachers/">giảng viên</Link> và một{" "}
-            <Link className="underline" href="/rooms/">phòng học</Link> trước khi đặt lịch.
+            Hãy thêm ít nhất một{" "}
+            <Link className="underline" href="/teachers/">
+              {terms.person.toLowerCase()}
+            </Link>{" "}
+            và một{" "}
+            <Link className="underline" href="/rooms/">
+              {terms.room.toLowerCase()}
+            </Link>{" "}
+            trước khi đặt lịch.
           </Alert>
         </div>
       )}

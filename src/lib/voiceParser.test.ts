@@ -5,7 +5,7 @@ import { fold, parseVoiceCommand } from "./voiceParser";
 const teacher = (id: string, name: string): Teacher => ({
   id, name, email: null, phone: null, department: null, color: "#60a5fa", created_at: "",
 });
-const room = (id: string, name: string): Room => ({ id, name, building: null, capacity: null, equipment: null, created_at: "" });
+const room = (id: string, name: string): Room => ({ id, name, building: null, capacity: null, equipment: null, is_virtual: 0, created_at: "" });
 
 const ctx = {
   teachers: [teacher("an", "ThS. Nguyễn Văn An"), teacher("binh", "TS. Trần Thị Bình"), teacher("cuong", "PGS. Lê Minh Cường")],
@@ -96,6 +96,40 @@ describe("parseVoiceCommand", () => {
     });
     expect(parse("cô Bình coi thi ngày mai 7h30").kind).toBe("exam");
     expect(parse("thầy An dạy Lập trình Web").kind).toBeUndefined();
+  });
+
+  it("understands business and office commands", () => {
+    const biz = {
+      ...ctx,
+      teachers: [teacher("lan", "Nguyễn Thị Lan"), teacher("minh", "Trần Văn Minh")],
+      rooms: [room("p1", "Phòng họp 1"), room("ht", "Hội trường")],
+    };
+    expect(parseVoiceCommand("Thứ 5 lúc 10 giờ chị Lan gặp khách hàng Công ty ABC phòng họp 1 trong 1 tiếng", biz)).toMatchObject({
+      kind: "client",
+      teacher_id: "lan",
+      room_id: "p1",
+      date: "2026-10-08",
+      start_time: "10:00",
+      end_time: "11:00",
+      title: "Gặp khách hàng Công ty ABC",
+    });
+    expect(parseVoiceCommand("Sáng thứ 2 lúc 7 giờ 30 giao ban toàn cơ quan tại hội trường trong 1 tiếng, lặp 12 tuần", biz)).toMatchObject({
+      kind: "meeting",
+      room_id: "ht",
+      date: "2026-10-12",
+      start_time: "07:30",
+      end_time: "08:30",
+      repeat_weeks: 12,
+      title: "Giao ban toàn cơ quan",
+    });
+    expect(parseVoiceCommand("anh Minh họp 1:1 với chị Lan chiều mai 3 giờ", biz)).toMatchObject({
+      kind: "one_on_one",
+      start_time: "15:00",
+      date: "2026-10-08",
+    });
+    expect(parseVoiceCommand("anh Minh đi công tác thứ 6", biz).kind).toBe("business_trip");
+    expect(parseVoiceCommand("phỏng vấn ứng viên lúc 9 giờ", biz).kind).toBe("interview");
+    expect(parseVoiceCommand("tiếp công dân sáng thứ 3", biz).kind).toBe("reception");
   });
 
   it("returns an empty draft for unrelated speech", () => {

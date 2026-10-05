@@ -6,19 +6,22 @@ import { useAuth } from "./AuthProvider";
 import { InstallButton } from "./InstallButton";
 import { UserMenu } from "./UserMenu";
 import { cn } from "./ui";
+import type { Profile } from "@/shared/profiles";
 
-const links = [
+const linksFor = (t: Profile) => [
   { href: "/", label: "Lịch" },
-  { href: "/teachers/", label: "Giảng viên" },
-  { href: "/rooms/", label: "Phòng học" },
+  { href: "/teachers/", label: t.people },
+  { href: "/rooms/", label: t.room },
   { href: "/templates/", label: "Mẫu lịch" },
   { href: "/reports/", label: "Báo cáo" },
   { href: "/users/", label: "Tài khoản", adminOnly: true },
+  { href: "/settings/", label: "Cài đặt", adminOnly: true },
 ];
 
 export function Nav() {
   const pathname = usePathname();
-  const { isAdmin } = useAuth();
+  const { isAdmin, terms, appName } = useAuth();
+  const links = linksFor(terms);
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href.replace(/\/$/, "")));
 
   return (
@@ -27,9 +30,9 @@ export function Nav() {
       <nav className="glass mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl px-4 py-3">
         <Link href="/" className="flex items-center gap-2 font-semibold">
           <span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-indigo-400 to-cyan-400 text-sm shadow-lg shadow-cyan-900/40">
-            📅
+            {terms.icon}
           </span>
-          <span>Lịch Giảng</span>
+          <span className="max-w-[12rem] truncate">{appName}</span>
         </Link>
         <div className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto px-1 sm:order-2 sm:ml-auto sm:w-auto">
           {links.filter((l) => !l.adminOnly || isAdmin).map((l) => (

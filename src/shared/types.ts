@@ -16,6 +16,8 @@ export interface Room {
   building: string | null;
   capacity: number | null;
   equipment: string | null;
+  /** 1 = phòng ảo (Online, bên ngoài): không kiểm tra trùng phòng */
+  is_virtual: number;
   created_at: string;
 }
 
@@ -46,7 +48,7 @@ export type TeacherInput = Pick<Teacher, "name"> &
   Partial<Pick<Teacher, "email" | "phone" | "department" | "color">>;
 
 export type RoomInput = Pick<Room, "name"> &
-  Partial<Pick<Room, "building" | "capacity" | "equipment">>;
+  Partial<Pick<Room, "building" | "capacity" | "equipment">> & { is_virtual?: boolean };
 
 export interface SessionInput {
   title: string;
@@ -80,17 +82,42 @@ export interface ApiError {
 
 export const MAX_REPEAT_WEEKS = 30;
 
-export const EVENT_KINDS = ["lecture", "practice", "meeting", "seminar", "exam", "defense", "office_hours", "other"] as const;
+export const EVENT_KINDS = [
+  "lecture",
+  "practice",
+  "meeting",
+  "seminar",
+  "exam",
+  "defense",
+  "office_hours",
+  "client",
+  "one_on_one",
+  "interview",
+  "training",
+  "conference",
+  "reception",
+  "business_trip",
+  "duty",
+  "other",
+] as const;
 export type EventKind = (typeof EVENT_KINDS)[number];
 
 export const KIND_META: Record<EventKind, { label: string; icon: string }> = {
   lecture: { label: "Giảng dạy", icon: "📚" },
   practice: { label: "Thực hành", icon: "🧪" },
   meeting: { label: "Cuộc họp", icon: "👥" },
-  seminar: { label: "Seminar", icon: "🎤" },
+  seminar: { label: "Seminar / Hội thảo", icon: "🎤" },
   exam: { label: "Coi thi", icon: "📝" },
   defense: { label: "Bảo vệ", icon: "🎓" },
   office_hours: { label: "Tiếp sinh viên", icon: "💬" },
+  client: { label: "Gặp khách hàng", icon: "🤝" },
+  one_on_one: { label: "Họp 1:1", icon: "🧑‍💼" },
+  interview: { label: "Phỏng vấn", icon: "🎯" },
+  training: { label: "Đào tạo / Tập huấn", icon: "📈" },
+  conference: { label: "Hội nghị", icon: "🏛️" },
+  reception: { label: "Tiếp khách / Tiếp dân", icon: "🙋" },
+  business_trip: { label: "Công tác", icon: "🚗" },
+  duty: { label: "Trực", icon: "🛡️" },
   other: { label: "Khác", icon: "📌" },
 };
 
@@ -114,6 +141,9 @@ export type TemplateInput = Omit<Template, "id" | "created_at" | "sort_order"> &
 
 export type Role = "admin" | "teacher";
 
+export const PROFILE_IDS = ["education", "business", "office"] as const;
+export type ProfileId = (typeof PROFILE_IDS)[number];
+
 export interface User {
   id: string;
   username: string;
@@ -133,8 +163,15 @@ export interface UserInput {
   password?: string;
 }
 
+export interface Settings {
+  profile: ProfileId;
+  /** Tên đơn vị hiển thị trên thanh điều hướng, màn hình đăng nhập */
+  org_name: string;
+}
+
 export interface AuthState {
   user: User | null;
+  settings: Settings;
   /** Chưa có tài khoản nào – cần tạo quản trị viên đầu tiên */
   needs_setup: boolean;
 }

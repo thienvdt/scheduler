@@ -3,6 +3,7 @@
 import type { AuthState, Role, User } from "../src/shared/types";
 import { MIN_PASSWORD_LENGTH } from "../src/shared/types";
 import { HttpError, json, optString, readBody, reqString, type Env } from "./http";
+import { getSettings, parseProfile, settingsStatements, templateStatements } from "./settings";
 
 const COOKIE = "lg_session";
 const SESSION_DAYS = 30;
@@ -150,7 +151,7 @@ export async function handleAuth(env: Env, request: Request, action: string | un
 
   if (action === "me" && method === "GET") {
     const user = await currentUser(env, request);
-    const state: AuthState = { user, needs_setup: !user && (await userCount(env)) === 0 };
+    const state: AuthState = { user, settings: await getSettings(env), needs_setup: !user && (await userCount(env)) === 0 };
     return json(state);
   }
 
@@ -161,6 +162,10 @@ export async function handleAuth(env: Env, request: Request, action: string | un
     const username = parseUsername(body.username);
     const password = parsePassword(body.password);
     const displayName = reqString(body.display_name, "display_name", 100);
+    const settings = {
+      profile: body.profile === undefined ? "education" as const : parseProfile(body.profile),
+      org_name: optString(body.org_name, "org_name", 100) ?? "",
+    };
     const id = crypto.randomUUID();
     const result = await env.DB.prepare(
       `INSERT INTO users (id, username, display_name, password_hash, role)
@@ -169,8 +174,10 @@ export async function handleAuth(env: Env, request: Request, action: string | un
       .bind(id, username, displayName, await hashPassword(password))
       .run();
     if (!result.meta.changes) throw new HttpError(409, "Hệ thống đã có tài khoản, hãy đăng nhập");
+    // Lưu loại hình và thay mẫu lịch mặc định cho phù hợp
+    await env.DB.batch([...settingsStatements(env, settings), ...templateStatements(env, settings.profile, true)]);
     const user = await env.DB.prepare(`SELECT ${USER_COLUMNS} FROM users WHERE id = ?`).bind(id).first<User>();
-    return startSession(env, request, id, { user, needs_setup: false } satisfies AuthState, 201);
+    return startSession(env, request, id, { user, settings, needs_setup: false } satisfies AuthState, 201);
   }
 
   if (action === "login" && method === "POST") {
@@ -204,7 +211,7 @@ export async function handleAuth(env: Env, request: Request, action: string | un
     await env.DB.prepare("DELETE FROM login_attempts WHERE username = ?").bind(username).run();
     const { password_hash: _hash, ...user } = row;
     void _hash;
-    return startSession(env, request, user.id, { user, needs_setup: false } satisfies AuthState);
+    return startSession(env, request, user.id, { user, settings: await getSettings(env), needs_setup: false } satisfies AuthState);
   }
 
   if (action === "logout" && method === "POST") {

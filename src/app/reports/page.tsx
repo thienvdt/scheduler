@@ -8,6 +8,7 @@ import { addDays, fromISODate, startOfWeek, toISODate, today } from "@/lib/date"
 import { downloadText } from "@/lib/download";
 import { buildWorkload, hours, workloadCsv } from "@/lib/report";
 import { Alert, Button, cn, Field, GlassCard, Input, PageHeader } from "@/components/ui";
+import { useTerms } from "@/components/AuthProvider";
 
 function monthRange(offset: number): [string, string] {
   const t = fromISODate(today());
@@ -24,19 +25,20 @@ const PRESETS: { label: string; range: () => [string, string] }[] = [
 ];
 
 export default function ReportsPage() {
+  const terms = useTerms();
   const [[from, to], setRange] = useState<[string, string]>(() => monthRange(0));
   const { data: teachers } = useResource(api.teachers.list, [] as Teacher[]);
   const fetchSessions = useCallback(() => api.sessions.list({ from, to }), [from, to]);
   const { data: sessions, loading, error } = useResource(fetchSessions, [] as Session[]);
 
   const valid = from && to && from <= to;
-  const rows = useMemo(() => buildWorkload(sessions, teachers), [sessions, teachers]);
-  const max = Math.max(1, ...rows.map((r) => r.teachingMinutes + r.otherMinutes));
+  const rows = useMemo(() => buildWorkload(sessions, teachers, terms.primaryKinds), [sessions, teachers, terms]);
+  const max = Math.max(1, ...rows.map((r) => r.primaryMinutes + r.otherMinutes));
   const totals = rows.reduce(
     (acc, r) => ({
-      teaching: acc.teaching + r.teachingMinutes,
+      teaching: acc.teaching + r.primaryMinutes,
       other: acc.other + r.otherMinutes,
-      sessions: acc.sessions + r.teachingSessions + r.otherSessions,
+      sessions: acc.sessions + r.primarySessions + r.otherSessions,
     }),
     { teaching: 0, other: 0, sessions: 0 },
   );
@@ -45,12 +47,12 @@ export default function ReportsPage() {
     <>
       <PageHeader
         title="Báo cáo khối lượng"
-        subtitle="Tổng giờ giảng, họp và sự kiện theo giảng viên (không tính các buổi đã huỷ)."
+        subtitle={`${terms.primaryHoursLabel}, ${terms.otherHoursLabel.toLowerCase()} theo ${terms.person.toLowerCase()} (gồm cả lịch tham dự, không tính lịch đã huỷ).`}
         actions={
           <Button
             variant="primary"
             disabled={!rows.length}
-            onClick={() => downloadText(`bao-cao-khoi-luong-${from}-den-${to}.csv`, workloadCsv(rows, { from, to }), "text/csv;charset=utf-8")}
+            onClick={() => downloadText(`bao-cao-khoi-luong-${from}-den-${to}.csv`, workloadCsv(rows, { from, to }, terms), "text/csv;charset=utf-8")}
           >
             ⬇ Xuất Excel (CSV)
           </Button>
@@ -92,8 +94,8 @@ export default function ReportsPage() {
 
       <div className="mb-4 grid grid-cols-3 gap-3">
         {[
-          { label: "Giờ giảng", value: hours(totals.teaching) },
-          { label: "Giờ họp & sự kiện", value: hours(totals.other) },
+          { label: terms.primaryHoursLabel, value: hours(totals.teaching) },
+          { label: terms.otherHoursLabel, value: hours(totals.other) },
           { label: "Số buổi", value: totals.sessions },
         ].map((s) => (
           <GlassCard key={s.label} className="px-4 py-3">
@@ -107,10 +109,10 @@ export default function ReportsPage() {
         <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wide text-white/60">
-              <th className="px-4 py-3 font-medium">Giảng viên</th>
-              <th className="px-3 py-3 text-right font-medium">Buổi giảng</th>
-              <th className="px-3 py-3 text-right font-medium">Giờ giảng</th>
-              <th className="px-3 py-3 text-right font-medium">Họp & sự kiện</th>
+              <th className="px-4 py-3 font-medium">{terms.person}</th>
+              <th className="px-3 py-3 text-right font-medium">{terms.primaryLabel}</th>
+              <th className="px-3 py-3 text-right font-medium">Giờ</th>
+              <th className="px-3 py-3 text-right font-medium">{terms.otherLabel}</th>
               <th className="px-3 py-3 text-right font-medium">Giờ</th>
               <th className="px-3 py-3 text-right font-medium">Đã huỷ</th>
               <th className="w-1/4 px-4 py-3 font-medium">Tổng giờ</th>
@@ -125,7 +127,7 @@ export default function ReportsPage() {
               </tr>
             )}
             {rows.map((r) => {
-              const total = r.teachingMinutes + r.otherMinutes;
+              const total = r.primaryMinutes + r.otherMinutes;
               return (
                 <tr key={r.teacher.id} className="border-b border-white/5 last:border-0">
                   <td className="px-4 py-3">
@@ -135,15 +137,15 @@ export default function ReportsPage() {
                     </div>
                     {r.teacher.department && <div className="pl-[18px] text-xs text-white/50">{r.teacher.department}</div>}
                   </td>
-                  <td className="px-3 py-3 text-right tabular-nums">{r.teachingSessions}</td>
-                  <td className="px-3 py-3 text-right font-semibold tabular-nums">{hours(r.teachingMinutes)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{r.primarySessions}</td>
+                  <td className="px-3 py-3 text-right font-semibold tabular-nums">{hours(r.primaryMinutes)}</td>
                   <td className="px-3 py-3 text-right tabular-nums">{r.otherSessions}</td>
                   <td className="px-3 py-3 text-right tabular-nums">{hours(r.otherMinutes)}</td>
                   <td className="px-3 py-3 text-right tabular-nums text-white/60">{r.cancelled}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="flex h-2.5 flex-1 overflow-hidden rounded-full bg-white/10" title={`${hours(total)} giờ`}>
-                        <div className="h-full bg-gradient-to-r from-indigo-400 to-cyan-400" style={{ width: `${(r.teachingMinutes / max) * 100}%` }} />
+                        <div className="h-full bg-gradient-to-r from-indigo-400 to-cyan-400" style={{ width: `${(r.primaryMinutes / max) * 100}%` }} />
                         <div className="h-full bg-fuchsia-400/70" style={{ width: `${(r.otherMinutes / max) * 100}%` }} />
                       </div>
                       <span className="w-12 text-right tabular-nums">{hours(total)}</span>
@@ -158,11 +160,11 @@ export default function ReportsPage() {
       <p className="mt-2 flex gap-4 text-xs text-white/50">
         <span>
           <span className="mr-1 inline-block h-2 w-2 rounded-full bg-cyan-400" />
-          Giảng dạy
+          {terms.primaryLabel}
         </span>
         <span>
           <span className="mr-1 inline-block h-2 w-2 rounded-full bg-fuchsia-400" />
-          Họp & sự kiện
+          {terms.otherLabel}
         </span>
       </p>
     </>

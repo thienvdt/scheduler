@@ -12,7 +12,8 @@ const PALETTE = ["#60a5fa", "#f472b6", "#34d399", "#fbbf24", "#a78bfa", "#f87171
 const empty: TeacherInput = { name: "", email: "", phone: "", department: "", color: PALETTE[0] };
 
 export default function TeachersPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, terms } = useAuth();
+  const person = terms.person.toLowerCase();
   const { data: items, loading, error: loadError, reload } = useResource(api.teachers.list, [] as Teacher[]);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Teacher | null>(null);
@@ -49,7 +50,7 @@ export default function TeachersPage() {
   }
 
   async function remove(t: Teacher) {
-    if (!confirm(`Xoá giảng viên "${t.name}"?`)) return;
+    if (!confirm(`Xoá ${person} "${t.name}"?`)) return;
     setError(null);
     try {
       await api.teachers.remove(t.id);
@@ -65,19 +66,19 @@ export default function TeachersPage() {
   return (
     <>
       <PageHeader
-        title="Giảng viên"
-        subtitle={`${items.length} giảng viên`}
+        title={terms.people}
+        subtitle={`${items.length} ${terms.people.toLowerCase()}`}
         actions={
           isAdmin && (
             <Button variant="primary" onClick={openCreate}>
-              + Thêm giảng viên
+              + Thêm {person}
             </Button>
           )
         }
       />
 
       <div className="mb-4 max-w-sm">
-        <Input placeholder="Tìm theo tên, email, khoa…" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <Input placeholder={`Tìm theo tên, email, ${terms.department.toLowerCase()}…`} value={query} onChange={(e) => setQuery(e.target.value)} />
       </div>
 
       {(error ?? loadError) && !form && (
@@ -89,7 +90,7 @@ export default function TeachersPage() {
       {loading ? (
         <p className="text-white/60">Đang tải…</p>
       ) : filtered.length === 0 ? (
-        <GlassCard className="p-8 text-center text-white/60">Chưa có giảng viên nào.</GlassCard>
+        <GlassCard className="p-8 text-center text-white/60">Chưa có {person} nào.</GlassCard>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((t) => (
@@ -125,7 +126,7 @@ export default function TeachersPage() {
         </div>
       )}
 
-      <Modal open={form !== null} title={editing ? "Sửa giảng viên" : "Thêm giảng viên"} onClose={() => setForm(null)}>
+      <Modal open={form !== null} title={editing ? `Sửa ${person}` : `Thêm ${person}`} onClose={() => setForm(null)}>
         {form && (
           <form onSubmit={submit} className="flex flex-col gap-4">
             {error && <Alert>{error}</Alert>}
@@ -140,7 +141,7 @@ export default function TeachersPage() {
                 <Input value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
               </Field>
             </div>
-            <Field label="Khoa / Bộ môn">
+            <Field label={terms.department}>
               <Input value={form.department ?? ""} onChange={(e) => setForm({ ...form, department: e.target.value })} />
             </Field>
             <Field label="Màu hiển thị trên lịch">

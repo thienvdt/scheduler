@@ -12,12 +12,13 @@ interface RoomForm {
   building: string;
   capacity: string;
   equipment: string;
+  is_virtual: boolean;
 }
 
-const empty: RoomForm = { name: "", building: "", capacity: "", equipment: "" };
+const empty: RoomForm = { name: "", building: "", capacity: "", equipment: "", is_virtual: false };
 
 export default function RoomsPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, terms } = useAuth();
   const { data: items, loading, error: loadError, reload } = useResource(api.rooms.list, [] as Room[]);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Room | null>(null);
@@ -32,6 +33,7 @@ export default function RoomsPage() {
       building: r.building ?? "",
       capacity: r.capacity?.toString() ?? "",
       equipment: r.equipment ?? "",
+      is_virtual: !!r.is_virtual,
     });
   }
 
@@ -66,8 +68,8 @@ export default function RoomsPage() {
   return (
     <>
       <PageHeader
-        title="Phòng học"
-        subtitle={`${items.length} phòng`}
+        title={terms.room}
+        subtitle={`${items.length} ${terms.room.toLowerCase()} · Phòng ảo (Online, bên ngoài) không bị kiểm tra trùng phòng`}
         actions={
           isAdmin && (
             <Button
@@ -109,6 +111,11 @@ export default function RoomsPage() {
                   </span>
                 )}
               </div>
+              {!!r.is_virtual && (
+                <span className="w-fit rounded-full border border-violet-300/40 bg-violet-400/15 px-2.5 py-1 text-xs">
+                  🌐 Phòng ảo – không kiểm tra trùng phòng
+                </span>
+              )}
               {r.equipment && <p className="text-sm text-white/70">🛠 {r.equipment}</p>}
               {isAdmin && (
                 <div className="mt-auto flex gap-2">
@@ -145,6 +152,18 @@ export default function RoomsPage() {
                 onChange={(e) => setForm({ ...form, capacity: e.target.value })}
               />
             </Field>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5 accent-cyan-400"
+                checked={form.is_virtual}
+                onChange={(e) => setForm({ ...form, is_virtual: e.target.checked })}
+              />
+              <span>
+                Phòng ảo (Online, bên ngoài, đi công tác)
+                <span className="block text-xs text-white/50">Nhiều lịch cùng giờ vẫn đặt được; chỉ kiểm tra trùng người.</span>
+              </span>
+            </label>
             <Field label="Thiết bị">
               <Textarea
                 placeholder="Máy chiếu, loa, bảng thông minh…"

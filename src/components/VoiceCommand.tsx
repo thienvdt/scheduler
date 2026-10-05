@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Room, Teacher } from "@/shared/types";
+import { KIND_META } from "@/shared/types";
 import { formatFull, today } from "@/lib/date";
 import { parseVoiceCommand, type ParsedCommand } from "@/lib/voiceParser";
 import { Alert, Button, cn, Modal, Textarea } from "./ui";
+import { useTerms } from "./AuthProvider";
 
 // Kiểu tối thiểu cho Web Speech API (chưa có trong lib DOM của TypeScript)
 interface SpeechRecognitionResultEvent {
@@ -41,7 +43,6 @@ const ERRORS: Record<string, string> = {
   "language-not-supported": "Trình duyệt chưa hỗ trợ nhận dạng tiếng Việt.",
 };
 
-const EXAMPLE = "Thứ 3 tuần sau thầy An dạy Lập trình Web lớp K66A phòng A101 từ 7 giờ đến 9 giờ, lặp 10 tuần";
 
 export function VoiceCommand({
   teachers,
@@ -54,6 +55,7 @@ export function VoiceCommand({
   onClose: () => void;
   onSubmit: (parsed: ParsedCommand, transcript: string) => void;
 }) {
+  const terms = useTerms();
   const supported = useSyncExternalStore(noopSubscribe, () => getRecognitionCtor() !== undefined, () => true);
   const [text, setText] = useState("");
   const [listening, setListening] = useState(false);
@@ -102,10 +104,11 @@ export function VoiceCommand({
   const teacher = teachers.find((t) => t.id === parsed.teacher_id);
   const room = rooms.find((r) => r.id === parsed.room_id);
   const fields: [string, string | undefined][] = [
-    ["Môn", parsed.title],
-    ["Lớp", parsed.class_name],
-    ["Giảng viên", teacher?.name],
-    ["Phòng", room?.name],
+    ["Loại", parsed.kind && KIND_META[parsed.kind].label],
+    [terms.id === "education" ? "Môn / Tiêu đề" : "Tiêu đề", parsed.title],
+    [terms.group, parsed.class_name],
+    [terms.person, teacher?.name],
+    [terms.room, room?.name],
     ["Ngày", parsed.date && formatFull(parsed.date)],
     ["Giờ", parsed.start_time && `${parsed.start_time}–${parsed.end_time}`],
     ["Lặp", parsed.repeat_weeks && parsed.repeat_weeks > 1 ? `${parsed.repeat_weeks} tuần` : undefined],
@@ -145,7 +148,7 @@ export function VoiceCommand({
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder={`VD: ${EXAMPLE}`}
+          placeholder={`VD: ${terms.voiceExample}`}
           aria-label="Câu lệnh"
           className="min-h-24"
         />
@@ -166,7 +169,8 @@ export function VoiceCommand({
         </div>
 
         <p className="text-xs text-white/50">
-          Mẹo: nói đủ <b>môn</b>, <b>giảng viên</b>, <b>phòng</b>, <b>thứ/ngày</b> và <b>giờ</b>. Bạn sẽ được xem lại trước khi lưu.
+          Mẹo: nói đủ <b>nội dung</b>, <b>{terms.person.toLowerCase()}</b>, <b>{terms.room.toLowerCase()}</b>, <b>thứ/ngày</b> và{" "}
+          <b>giờ</b>. Bạn sẽ được xem lại trước khi lưu.
         </p>
 
         <div className="flex justify-end gap-2">

@@ -148,6 +148,8 @@ function parseRelativeDate(c: Cursor, out: ParsedCommand, today: string) {
   const rel: [RegExp, number][] = [
     [/hom nay/, 0],
     [/ngay mai/, 1],
+    // "chiều mai", "mai 8 giờ" – "Mai" đứng một mình có thể là tên người
+    [/(?<=(?:sang|trua|chieu|toi) )mai(?![\p{L}])|(?<![\p{L}])mai(?= (?:luc |vao )?\d)/u, 1],
     [/ngay (?:kia|mot)/, 2],
   ];
   for (const [re, offset] of rel) {
@@ -227,6 +229,10 @@ function parseRoom(c: Cursor, out: ParsedCommand, rooms: Room[]) {
 
 const HONORIFICS = /^(?:ths|ts|pgs|gs|tskh|cn|ks|thay|co|gv)\.?\s+/;
 
+// Cách xưng hô đứng trước tên gọi: trường học + doanh nghiệp/văn phòng ("chị Lan", "anh Minh", "sếp Hùng")
+// "(?<!thu )" để "thứ ba An…" không bị hiểu là "bà An"
+const ADDRESS = String.raw`(?<!thu )(?:thay|co|giang vien|gv|ts|ths|pgs|gs|anh|chi|ong|ba|em|sep|chu|bac|nhan vien|can bo|dong chi|dc)`;
+
 function parseTeacher(c: Cursor, out: ParsedCommand, teachers: Teacher[]) {
   let best: { teacher: Teacher; score: number; index: number; length: number } | null = null;
   let ambiguous = false;
@@ -236,13 +242,13 @@ function parseTeacher(c: Cursor, out: ParsedCommand, teachers: Teacher[]) {
     while (HONORIFICS.test(name)) name = name.replace(HONORIFICS, "");
     const words = name.split(/\s+/).filter(Boolean);
     if (!words.length) continue;
-    // Thử từ họ tên đầy đủ → 2 chữ cuối → tên gọi (chữ cuối, cần "thầy/cô/GV" đứng trước)
+    // Thử từ họ tên đầy đủ → 2 chữ cuối → tên gọi (chữ cuối, cần "thầy/cô/anh/chị…" đứng trước)
     const candidates: [string, number][] = [[words.join(" "), 3]];
     if (words.length > 2) candidates.push([words.slice(-2).join(" "), 2]);
-    candidates.push([`(?:thay|co|giang vien|gv|ts|ths|pgs|gs)\\.?\\s+${escapeRe(words[words.length - 1])}`, 1]);
+    candidates.push([`${ADDRESS}\\.?\\s+${escapeRe(words[words.length - 1])}`, 1]);
 
     for (const [pattern, score] of candidates) {
-      const re = new RegExp(String.raw`(?:(?:thay|co|giang vien|gv)\s+)?(?<![\p{L}])${score === 1 ? pattern : escapeRe(pattern)}(?![\p{L}])`, "u");
+      const re = new RegExp(String.raw`(?:${ADDRESS}\s+)?(?<![\p{L}])${score === 1 ? pattern : escapeRe(pattern)}(?![\p{L}])`, "u");
       const m = re.exec(c.folded);
       if (!m) continue;
       if (!best || score > best.score) {
@@ -307,17 +313,35 @@ function parseTitle(c: Cursor, out: ParsedCommand) {
   if (best) out.title = capitalize(best);
 }
 
+const w = (words: string) => new RegExp(String.raw`(?<![\p{L}])(?:${words})(?![\p{L}])`, "u");
+
+// Thứ tự quan trọng: cụm cụ thể trước cụm chung ("họp với khách hàng" → gặp khách hàng, không phải họp)
 const KIND_PATTERNS: [RegExp, EventKind][] = [
-  [/(?<![\p{L}])coi thi(?![\p{L}])/u, "exam"],
+  [w("coi thi"), "exam"],
   [/(?<![\p{L}])bao ve (?:luan van|luan an|do an|khoa luan)/u, "defense"],
-  [/(?<![\p{L}])(?:seminar|hoi thao)(?![\p{L}])/u, "seminar"],
-  [/(?<![\p{L}])tiep sinh vien(?![\p{L}])/u, "office_hours"],
-  [/(?<![\p{L}])(?:hop|giao ban)(?![\p{L}])/u, "meeting"],
-  [/(?<![\p{L}])thuc hanh(?![\p{L}])/u, "practice"],
+  [w("tiep sinh vien"), "office_hours"],
+  [w("tiep khach|tiep dan|tiep cong dan|tiep doan|don doan"), "reception"],
+  [w("khach hang|doi tac"), "client"],
+  [w("phong van(?! thu)"), "interview"],
+  [w("hop 1 1|hop mot mot|one on one|1 kem 1"), "one_on_one"],
+  [w("dao tao|tap huan|training"), "training"],
+  [w("hoi nghi"), "conference"],
+  [w("seminar|hoi thao|workshop"), "seminar"],
+  [w("di cong tac|cong tac"), "business_trip"],
+  [w("truc co quan|truc ban|lich truc|di truc|truc"), "duty"],
+  [w("hop|giao ban"), "meeting"],
+  [w("thuc hanh"), "practice"],
 ];
 
 /** Nhận loại lịch từ từ khoá; không che chữ vì từ khoá thường cũng là một phần tiêu đề ("Họp bộ môn"). */
 function parseKind(c: Cursor, out: ParsedCommand) {
+  // "1:1" sẽ bị hiểu là giờ 01:01 → đổi thành "1 1" trước khi tìm
+  const oneOnOne = /(?<!\d)1\s*[:-]\s*1(?!\d)/.exec(c.folded);
+  if (oneOnOne) {
+    out.kind = "one_on_one";
+    c.mask(oneOnOne.index, oneOnOne.index + oneOnOne[0].length);
+    return;
+  }
   for (const [re, kind] of KIND_PATTERNS) {
     if (re.test(c.folded)) {
       out.kind = kind;

@@ -11,11 +11,11 @@ const beVietnam = Be_Vietnam_Pro({
 });
 
 export const metadata: Metadata = {
-  title: "Lịch Giảng – Quản lý lịch giảng dạy",
-  description: "Đặt lịch giảng, quản lý giảng viên và phòng học, tự động phát hiện trùng lịch.",
+  title: "Lịch – Đặt lịch giảng dạy, họp, công tác",
+  description: "Đặt lịch cho trường học, doanh nghiệp, văn phòng: tự phát hiện trùng lịch, mẫu lịch, tìm giờ trống.",
   manifest: "/manifest.webmanifest",
-  applicationName: "Lịch Giảng",
-  appleWebApp: { capable: true, title: "Lịch Giảng", statusBarStyle: "black-translucent" },
+  applicationName: "Lịch",
+  appleWebApp: { capable: true, title: "Lịch", statusBarStyle: "black-translucent" },
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/icon-192.png", sizes: "192x192" }],
     apple: "/apple-touch-icon.png",

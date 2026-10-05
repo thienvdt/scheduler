@@ -7,6 +7,7 @@ import { addDays, formatDayMonth } from "@/lib/date";
 import { downloadText } from "@/lib/download";
 import { buildIcs } from "@/lib/ics";
 import { Alert, Button, cn, Field, Modal, Select } from "./ui";
+import { useAuth } from "./AuthProvider";
 
 const RANGES = [
   { weeks: 1, label: "Tuần đang xem" },
@@ -36,6 +37,7 @@ export function ExportDialog({
   teachers?: Teacher[];
   onClose: () => void;
 }) {
+  const { appName } = useAuth();
   const [weeks, setWeeks] = useState(1);
   const [reminder, setReminder] = useState(15);
   const [busy, setBusy] = useState(false);
@@ -49,7 +51,7 @@ export function ExportDialog({
     setError(null);
     try {
       const sessions = await api.sessions.list({ from: weekStart, to, ...filters });
-      const name = `Lịch Giảng${filterLabel ? ` – ${filterLabel}` : ""}`;
+      const name = `${appName}${filterLabel ? ` – ${filterLabel}` : ""}`;
       downloadText(
         `lich-giang-${weekStart}-den-${to}.ics`,
         buildIcs(sessions, {

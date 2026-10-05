@@ -109,7 +109,7 @@ export function InstallButton() {
 
   return (
     <>
-      <Button variant="primary" className="px-3 py-1.5" onClick={install} title="Cài Lịch Giảng như một ứng dụng">
+      <Button variant="primary" className="px-3 py-1.5" onClick={install} title="Cài app lịch như một ứng dụng">
         <span className="hidden md:inline">{label}</span>
         <span className="md:hidden">{shortLabel}</span>
       </Button>
@@ -155,7 +155,7 @@ function InstallGuide({ platform }: { platform: Platform }) {
           Trên thanh menu chọn <b>Tệp → Thêm vào Dock…</b> (File → Add to Dock, cần macOS Sonoma trở lên).
         </Step>
         <Step n={2}>Nhấn <b>Thêm</b>. App xuất hiện trong Dock và thư mục Ứng dụng.</Step>
-        <Step n={3}>Muốn có biểu tượng trên Desktop: mở Finder → Ứng dụng, kéo “Lịch Giảng” ra Desktop.</Step>
+        <Step n={3}>Muốn có biểu tượng trên Desktop: mở Finder → Ứng dụng, kéo biểu tượng app ra Desktop.</Step>
       </ol>
     );
   }
