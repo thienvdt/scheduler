@@ -91,6 +91,7 @@ describe("GVCN: thời khoá biểu lồng theo lớp → thứ", () => {
     const ds = findTables({ students: [{ hoTen: "A", ngaySinh: "2010-01-01" }], tkb: [{ thu: 2, tiet: 1, mon: "Toán", lop: "10A1" }] }, "app");
     expect(ds).toHaveLength(2);
     expect(ds.filter((d) => timetableScore(d).ok)).toHaveLength(1);
+    expect(ds.map((d) => d.label)).toEqual(["app › students", "app › tkb"]);
   });
 });
 

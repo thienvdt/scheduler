@@ -70,7 +70,7 @@ const levelColumn = (i: number) => `[cấp ${i + 1}]`;
  */
 export function findTables(value: unknown, source: string): Dataset[] {
   // Gộp theo hình dạng đường dẫn + bộ trường của object, để {classes:[…], timetable:[…]} vẫn tách riêng
-  const groups = new Map<string, { label: string; rows: Row[]; distinct: Set<string> }>();
+  const groups = new Map<string, { path: string; label: string; rows: Row[]; distinct: Set<string> }>();
   const walk = (v: unknown, keys: string[], shape: string[], names: string[], depth: number) => {
     if (depth > 6) return;
     if (Array.isArray(v)) {
@@ -79,8 +79,8 @@ export function findTables(value: unknown, source: string): Dataset[] {
       const fields = Object.keys(objects[0]).sort().join(",");
       const sig = shape.join("/") + "|" + fields;
       // Tên hiển thị: bỏ các cấp là dữ liệu (tên lớp, thứ…), chỉ giữ tên trường như "thoiKhoaBieu"
-      const label = names.filter((_, i) => shape[i] !== "*").join(" › ");
-      const g = groups.get(sig) ?? { label, rows: [], distinct: new Set<string>() };
+      // Tên hiển thị: chỉ một nhóm → giữ nguyên đường dẫn ("thoiKhoaBieu"); nhiều nhóm → bỏ các cấp là dữ liệu (tên lớp, thứ…)
+      const g = groups.get(sig) ?? { path: names.join(" › "), label: names.filter((_, i) => shape[i] !== "*").join(" › "), rows: [], distinct: new Set<string>() };
       g.distinct.add(names.join("/"));
       for (const o of objects) {
         const row: Row = {};
@@ -120,7 +120,7 @@ export function findTables(value: unknown, source: string): Dataset[] {
   return [...groups.entries()].map(([sig, g]) => {
     const columns: string[] = [];
     for (const r of g.rows.slice(0, 200)) for (const c of Object.keys(r)) if (!columns.includes(c)) columns.push(c);
-    const label = [source, g.label].filter(Boolean).join(" › ") + (g.distinct.size > 1 ? ` (${g.distinct.size} nhóm)` : "");
+    const label = g.distinct.size > 1 ? [source, g.label].filter(Boolean).join(" › ") + ` (${g.distinct.size} nhóm)` : [source, g.path].filter(Boolean).join(" › ");
     return { id: `${source}#${sig}`, label, rows: g.rows, columns };
   });
 }
