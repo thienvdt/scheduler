@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useResource } from "@/lib/useResource";
 import type { SampleCounts } from "@/lib/api";
 import type { ProfileId } from "@/shared/types";
@@ -123,6 +124,16 @@ export default function SettingsPage() {
               </Button>
             ))}
         </div>
+      </GlassCard>
+
+      <GlassCard className="mb-4 flex flex-wrap items-center justify-between gap-3 p-5">
+        <div>
+          <h2 className="text-lg font-semibold">Nhập thời khoá biểu</h2>
+          <p className="mt-1 text-sm text-white/60">Từ app GVCN / GVBM, file CSV (Excel) hoặc JSON. Tự tạo giáo viên, phòng còn thiếu và bỏ qua tiết trùng.</p>
+        </div>
+        <Link href="/import/">
+          <Button type="button">📥 Nhập dữ liệu</Button>
+        </Link>
       </GlassCard>
 
       <h2 className="mb-3 text-lg font-semibold">Loại hình sử dụng</h2>

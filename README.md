@@ -23,6 +23,16 @@ dùng cho họp online, đi công tác. Quản trị viên có thể đánh dấ
 - **Hướng dẫn ngay trên trang:** lần đầu đăng nhập, app tự mở tour 12 bước – làm nổi bật từng nút (menu, Đặt lịch, Từ mẫu,
   Giọng nói, Tìm giờ trống, lịch tuần, bộ lọc…) kèm bong bóng giải thích; phím ← → / Esc. Mở lại bất cứ lúc nào ở menu tài
   khoản → **📘 Hướng dẫn sử dụng** (hoặc thêm `#tour` vào đường dẫn).
+- **Nhập thời khoá biểu từ app GVCN / GVBM** (menu tài khoản → *📥 Nhập thời khoá biểu*, hoặc Cài đặt):
+  - Nếu **localStorage** của trình duyệt có dữ liệu giống thời khoá biểu (app kia chạy cùng tên miền), trang Lịch **hỏi người
+    dùng có muốn import không** (Có / Để sau / Không, đừng hỏi lại). Không tự nhập gì.
+  - App ở **tên miền khác** (vd. quanlylophoc.aistudybuddy.vn): trình duyệt không cho đọc chéo localStorage, nên dùng dấu trang
+    **📥 Gửi sang Lịch** (bookmarklet) – bấm khi đang mở app kia, dữ liệu được gửi sang trang Nhập qua `postMessage`.
+  - Hoặc chọn file **CSV** (Excel → Lưu thành CSV UTF-8) / **JSON**, hoặc dán dữ liệu.
+  - Tự tìm bảng (kể cả dạng lồng `{lớp: {thứ: [tiết…]}}`), đoán cột (thứ, tiết, buổi, môn, lớp, phòng, giáo viên…; tiếng Việt
+    có/không dấu, tiếng Anh), đổi tiết → giờ theo bảng giờ chỉnh được, gộp tiết liền nhau. Xem trước → **Kiểm tra trùng lịch**
+    → **Import**: lặp N tuần, tạo giáo viên / phòng còn thiếu, bỏ qua (và liệt kê) buổi trùng – nhập lại cùng dữ liệu không bị nhân đôi.
+  - Giáo viên tự nhập: lịch luôn đứng tên mình, mặc định chỉ lấy tiết có tên mình; không tạo được giáo viên / phòng mới.
 - **Dữ liệu mẫu:** quản trị viên bấm *Nạp dữ liệu mẫu* (ngay ở bước đầu của tour, ở thông báo khi hệ thống còn trống, hoặc
   trong *Cài đặt*) để có sẵn người, phòng và ~35 lịch theo loại hình đang dùng (trường học / doanh nghiệp / văn phòng), đặt vào
   tuần hiện tại và lặp vài tuần. Dữ liệu mẫu có mã `mau-…` nên *Xoá dữ liệu mẫu* trong Cài đặt xoá sạch, không đụng dữ liệu thật.
@@ -95,6 +105,7 @@ seed/seed.sql       Dữ liệu mẫu
 | POST | `/api/auth/setup` · `login` · `logout` · `password` | Tạo quản trị viên đầu tiên / đăng nhập / đăng xuất / đổi mật khẩu |
 | GET/POST, PUT/DELETE | `/api/users`, `/api/users/:id` | Quản lý tài khoản (quản trị viên) |
 | GET/PUT | `/api/settings` | Loại hình, tên đơn vị (sửa: quản trị viên; `add_templates` thêm mẫu mặc định) |
+| POST | `/api/import` | Nhập thời khoá biểu `{items, start_date, weeks, dry_run}` → số buổi tạo / bỏ qua (giáo viên: chỉ lịch của mình) |
 | GET/POST | `/api/settings/sample` | Số bản ghi mẫu / `{"action":"load"}` nạp (lại) hoặc `{"action":"clear"}` xoá dữ liệu mẫu (quản trị viên) |
 | GET/POST | `/api/teachers` | Danh sách / thêm giảng viên |
 | PUT/DELETE | `/api/teachers/:id` | Sửa / xoá (409 nếu đang có lịch) |

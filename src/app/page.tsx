@@ -19,6 +19,7 @@ import { SessionDialog, type SessionDraft } from "@/components/SessionDialog";
 import { VoiceCommand } from "@/components/VoiceCommand";
 import type { ParsedCommand } from "@/lib/voiceParser";
 import { DATA_CHANGED_EVENT, Tour } from "@/components/Tour";
+import { ImportPrompt } from "@/components/ImportPrompt";
 
 type View = "week" | "list";
 
@@ -363,6 +364,7 @@ export default function CalendarPage() {
       </div>
 
       {!metaLoading && <Tour hasData={hasData} />}
+      {!metaLoading && <ImportPrompt />}
 
       {exportOpen && (
         <ExportDialog

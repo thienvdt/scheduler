@@ -12,7 +12,18 @@ export const DATA_CHANGED_EVENT = "lich-giang:data-changed";
 /** Đặt cờ này (sessionStorage) trước khi chuyển về trang Lịch để tour tự mở */
 export const TOUR_PENDING = "tour-pending";
 
+/** Phát khi người dùng xem xong / bỏ qua tour */
+export const TOUR_DONE_EVENT = "lich-giang:tour-done";
+
 const doneKey = (userId: string) => `tour-done-${userId}`;
+
+export function tourDone(userId: string): boolean {
+  try {
+    return localStorage.getItem(doneKey(userId)) === "1";
+  } catch {
+    return true;
+  }
+}
 
 interface Step {
   /** Giá trị data-tour của phần tử cần làm nổi bật; bỏ trống = hộp giữa màn hình */
@@ -144,7 +155,12 @@ export function Tour({ hasData }: { hasData: boolean }) {
     {
       target: "usermenu",
       title: "Tài khoản của bạn",
-      body: <p>Đổi mật khẩu, đăng xuất, và mở lại <b>hướng dẫn</b> này bất cứ lúc nào.</p>,
+      body: (
+        <p>
+          Đổi mật khẩu, đăng xuất, <b>nhập thời khoá biểu</b> từ app khác (GVCN / GVBM, file CSV / JSON) và mở lại <b>hướng dẫn</b> này bất cứ
+          lúc nào.
+        </p>
+      ),
     },
     {
       title: "Xong! 🎉",
@@ -161,6 +177,7 @@ export function Tour({ hasData }: { hasData: boolean }) {
     try {
       localStorage.setItem(doneKey(user.id), "1");
     } catch {}
+    window.dispatchEvent(new Event(TOUR_DONE_EVENT));
   }, [user.id]);
 
   /** Bước kế tiếp theo hướng dir mà phần tử của nó đang hiển thị (bước không có target luôn hợp lệ) */

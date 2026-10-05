@@ -177,3 +177,52 @@ export interface AuthState {
 }
 
 export const MIN_PASSWORD_LENGTH = 8;
+
+// ---------- Nhập dữ liệu từ app khác (thời khoá biểu GVCN / GVBM) ----------
+
+/** Một dòng lịch đã chuẩn hoá ở trình duyệt, chưa gắn id giáo viên / phòng. */
+export interface ImportItem {
+  /** Tên giáo viên; tài khoản giáo viên nhập thì luôn là chính mình */
+  teacher: string;
+  department?: string | null;
+  room: string;
+  title: string;
+  class_name?: string | null;
+  kind?: EventKind;
+  /** 1 = Thứ 2 … 7 = Chủ nhật: lặp hằng tuần từ start_date. Bỏ trống khi có `date`. */
+  weekday?: number | null;
+  date?: string | null;
+  start_time: string;
+  end_time: string;
+  note?: string | null;
+}
+
+export interface ImportRequest {
+  items: ImportItem[];
+  /** Thứ 2 của tuần đầu tiên */
+  start_date: string;
+  weeks: number;
+  dry_run?: boolean;
+}
+
+export interface ImportSkip {
+  title: string;
+  teacher: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  reason: string;
+}
+
+export interface ImportResult {
+  dry_run: boolean;
+  teachers_created: string[];
+  rooms_created: string[];
+  sessions_created: number;
+  skipped_count: number;
+  /** Tối đa 100 dòng đầu */
+  skipped: ImportSkip[];
+}
+
+export const MAX_IMPORT_ITEMS = 1000;
+export const MAX_IMPORT_SESSIONS = 6000;

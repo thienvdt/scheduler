@@ -71,6 +71,16 @@ export function UserMenu() {
           >
             📘 Hướng dẫn sử dụng
           </button>
+          <button
+            role="menuitem"
+            className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-white/10"
+            onClick={() => {
+              setOpen(false);
+              router.push("/import/");
+            }}
+          >
+            📥 Nhập thời khoá biểu
+          </button>
           <button role="menuitem" className="w-full rounded-xl px-3 py-2 text-left text-sm text-rose-200 hover:bg-white/10" onClick={logout}>
             ↩ Đăng xuất
           </button>

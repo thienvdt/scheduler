@@ -1,6 +1,8 @@
 import type {
   ApiError,
   Conflict,
+  ImportRequest,
+  ImportResult,
   Room,
   RoomInput,
   Session,
@@ -71,6 +73,7 @@ export const api = {
     sampleCounts: () => request<SampleCounts>("/settings/sample"),
     sample: (action: "load" | "clear") => request<SampleCounts>("/settings/sample", send("POST", { action })),
   },
+  import: (input: ImportRequest) => request<ImportResult>("/import", send("POST", input)),
   users: {
     list: () => request<User[]>("/users"),
     create: (input: UserInput) => request<User>("/users", send("POST", input)),
