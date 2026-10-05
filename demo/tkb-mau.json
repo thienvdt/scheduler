@@ -1,0 +1,9 @@
+{
+  "giaoVien": "Phạm Quốc Huy",
+  "thoiKhoaBieu": [
+    { "thu": 2, "tiet": 4, "mon": "Tiếng Anh", "lop": "10A1", "gv": "Phạm Quốc Huy" },
+    { "thu": 3, "tiet": 3, "mon": "Tiếng Anh", "lop": "10A1", "gv": "Phạm Quốc Huy" },
+    { "thu": 4, "tiet": 1, "buoi": "Chiều", "mon": "Tiếng Anh", "lop": "11A1", "gv": "Phạm Quốc Huy" },
+    { "thu": 6, "tiet": 2, "mon": "Tiếng Anh giao tiếp", "lop": "CLB", "phong": "Online", "gv": "Phạm Quốc Huy" }
+  ]
+}

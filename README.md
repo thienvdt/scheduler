@@ -174,6 +174,18 @@ npm run preview               # http://localhost:8788
 
 Kiểm tra: `npm run typecheck`, `npm run lint`, `npm test`.
 
+### Thử chức năng Nhập thời khoá biểu ở local
+
+```bash
+npm run preview          # terminal 1: app lịch tại http://localhost:8788
+npm run demo:import      # terminal 2: app GVBM giả lập tại http://127.0.0.1:8790 (khác tên miền)
+```
+
+Mở http://127.0.0.1:8790 – trang có thời khoá biểu mẫu và hướng dẫn 3 cách thử: dấu trang **📥 Gửi sang Lịch**
+(khác tên miền), đoạn mã dán vào Console của app lịch để thử **hộp hỏi import** (cùng tên miền), và file
+`demo/tkb-mau.csv`, `demo/tkb-mau.json`. Muốn làm lại từ đầu: xoá thư mục `.wrangler/state` rồi chạy lại
+`npm run db:migrate:local`.
+
 ## Deploy thủ công lên Cloudflare Pages
 
 (Cách nhanh hơn: `npm run setup:cloudflare` ở trên.)

@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.worker.json",
     "test": "vitest run",
     "setup:cloudflare": "node scripts/setup-cloudflare.mjs",
-    "simulate:cloudflare": "node scripts/setup-cloudflare.mjs --simulate"
+    "simulate:cloudflare": "node scripts/setup-cloudflare.mjs --simulate",
+    "demo:import": "node scripts/demo-import.mjs"
   },
   "dependencies": {
     "next": "16.3.8",

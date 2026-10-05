@@ -1,0 +1,61 @@
+<!doctype html><html lang="vi"><meta charset="utf-8"><title>App GVBM (giả lập)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{margin:0;font-family:system-ui,sans-serif;background:#f4f6fb;color:#1f2937}
+header{background:#0f766e;color:#fff;padding:14px 28px;display:flex;justify-content:space-between;align-items:center}
+header b{font-size:18px} main{padding:24px 28px}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:18px 22px;margin-bottom:18px}
+table{border-collapse:collapse;width:100%;font-size:14px} th,td{border:1px solid #e5e7eb;padding:8px 10px;text-align:center}
+th{background:#ecfdf5;color:#065f46} td.s{background:#f0fdfa;font-weight:600}
+.tag{display:inline-block;background:#ccfbf1;color:#115e59;border-radius:999px;padding:2px 10px;font-size:12px;margin-left:8px}
+</style>
+<header><b>📘 Sổ tay Giáo viên bộ môn <span class="tag">bản giả lập</span></b><span>GV: Trần Minh Đức · Tổ Hoá – Sinh</span></header>
+<main>
+<div class="card"><h2 style="margin:0 0 6px">Thời khoá biểu cá nhân – HK I</h2><p style="margin:0;color:#6b7280">Dữ liệu được app lưu trong bộ nhớ trình duyệt (localStorage)</p></div>
+<div class="card"><table id="tkb"></table></div>
+<div class="card" style="border:2px dashed #99f6e4">
+<h3 style="margin-top:0">🧪 Hướng dẫn thử (chỉ có ở bản giả lập)</h3>
+<ol style="line-height:1.8">
+<li><b>Khác tên miền (dấu trang):</b> mở app lịch <a href="http://localhost:8788/import/" target="_blank">localhost:8788/import</a> → mục “Lấy dữ liệu từ app GVCN / GVBM ở trang web khác” → kéo nút <b>📥 Gửi sang Lịch</b> lên thanh dấu trang. Quay lại trang này, bấm dấu trang đó.</li>
+<li><b>Cùng tên miền (hộp hỏi tự hiện):</b> mở <a href="http://localhost:8788/" target="_blank">localhost:8788</a>, bấm F12 → Console, dán đoạn mã dưới rồi Enter. Trang tải lại và hỏi “Bạn có muốn import…?”.
+<pre id="snippet" style="background:#0f172a;color:#e2e8f0;padding:10px;border-radius:8px;white-space:pre-wrap;font-size:12px"></pre>
+<button onclick="navigator.clipboard.writeText(document.getElementById('snippet').textContent);this.textContent='Đã chép ✓'" style="padding:6px 14px;border-radius:8px;border:0;background:#0f766e;color:#fff;cursor:pointer">Chép đoạn mã</button></li>
+<li><b>File:</b> tải <a href="/tkb-mau.csv">tkb-mau.csv</a> hoặc <a href="/tkb-mau.json">tkb-mau.json</a> rồi chọn ở trang Nhập → “Chọn file CSV / JSON”.</li>
+</ol>
+</div>
+</main>
+<script>
+const tkb = [
+  { thu: "Thứ 2", tiet: 3, mon: "Hoá học", lop: "11A1", giaoVien: "Trần Minh Đức" },
+  { thu: "Thứ 2", tiet: 4, mon: "Hoá học", lop: "11A1", giaoVien: "Trần Minh Đức" },
+  { thu: "Thứ 3", tiet: 1, buoi: "Chiều", mon: "Hoá học", lop: "11A3", giaoVien: "Trần Minh Đức" },
+  { thu: "Thứ 3", tiet: 2, buoi: "Chiều", mon: "Hoá học", lop: "11A3", giaoVien: "Trần Minh Đức" },
+  { thu: "Thứ 4", tiet: 2, mon: "Hoá học", lop: "12A2", giaoVien: "Trần Minh Đức" },
+  { thu: "Thứ 5", tiet: 1, mon: "Thực hành Hoá", lop: "11A1", phong: "Phòng thí nghiệm", giaoVien: "Trần Minh Đức" },
+  { thu: "Thứ 5", tiet: 2, mon: "Thực hành Hoá", lop: "11A1", phong: "Phòng thí nghiệm", giaoVien: "Trần Minh Đức" },
+  { thu: "Thứ 6", tiet: 4, mon: "Họp tổ Hoá – Sinh", lop: "", phong: "Phòng giáo viên", giaoVien: "Trần Minh Đức" },
+  { thu: "Thứ 6", tiet: 2, buoi: "Chiều", mon: "Hoá học", lop: "12A2", giaoVien: "Trần Minh Đức" }
+];
+localStorage.setItem("gvbm_state", JSON.stringify({ user: { name: "Trần Minh Đức", role: "GVBM" }, thoiKhoaBieu: tkb, hocSinh: [{ hoTen: "Nguyễn Văn A", lop: "11A1" }] }));
+const days = ["Thứ 2","Thứ 3","Thứ 4","Thứ 5","Thứ 6","Thứ 7"];
+let h = "<tr><th>Tiết</th>" + days.map(d=>"<th>"+d+"</th>").join("") + "</tr>";
+for (let p = 1; p <= 10; p++) {
+  h += "<tr><td>" + (p<=5 ? "Sáng " + p : "Chiều " + (p-5)) + "</td>";
+  for (const d of days) {
+    const x = tkb.find(t => t.thu === d && (t.buoi === "Chiều" ? t.tiet + 5 : t.tiet) === p);
+    h += x ? `<td class="s">${x.mon}<br><small>${x.lop || x.phong}</small></td>` : "<td></td>";
+  }
+  h += "</tr>";
+}
+document.getElementById("tkb").innerHTML = h;
+const gvcn = {
+  "10A1": {
+    "Thứ 2": [{ tiet: 1, mon: "Chào cờ", gv: "Lê Văn An" }, { tiet: 2, mon: "Ngữ văn", gv: "Trần Thị Bình" }, { tiet: 3, mon: "Ngữ văn", gv: "Trần Thị Bình" }],
+    "Thứ 3": [{ tiet: 1, mon: "Toán", gv: "Lê Văn An" }, { tiet: 2, mon: "Toán", gv: "Lê Văn An" }],
+    "Thứ 7": [{ tiet: 5, mon: "Sinh hoạt lớp", gv: "Lê Văn An" }]
+  },
+  "10A2": { "Thứ 4": [{ tiet: 1, mon: "Ngữ văn", gv: "Trần Thị Bình" }], "Thứ 6": [{ tiet: 1, mon: "Toán", gv: "Lê Văn An" }] }
+};
+document.getElementById("snippet").textContent =
+  "localStorage.setItem('gvcn_tkb_lop', JSON.stringify(" + JSON.stringify(gvcn) + ")); location.reload();";
+</script></html>
