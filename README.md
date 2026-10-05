@@ -4,6 +4,21 @@
 tự động **phát hiện trùng lịch** (cùng người hoặc cùng phòng), mẫu lịch, tìm giờ trống, đặt lịch bằng giọng nói.
 Giao diện glassmorphism, cài được như ứng dụng (PWA).
 
+## Nơi lưu dữ liệu
+
+| | **Trên trình duyệt** (mặc định) | **Cloudflare D1** (tuỳ chọn) |
+| --- | --- | --- |
+| Dữ liệu nằm ở | localStorage của trình duyệt đang dùng (SQLite chạy ngay trong trang) | Cơ sở dữ liệu D1 trên tài khoản Cloudflare của đơn vị |
+| Cần máy chủ / mạng | Không – chỉ cần web tĩnh; chạy được cả khi mất mạng | Có (Cloudflare Pages + Functions) |
+| Nhiều người dùng chung | Không – mỗi máy / trình duyệt một bản riêng | Có – cả đơn vị dùng chung, đăng nhập mọi thiết bị |
+| Dung lượng | khoảng 5 MB (vài nghìn buổi lịch) | ~5 GB (gói Free) |
+| Sao lưu | Cài đặt → **Tải bản sao lưu** (file .sqlite) / **Khôi phục từ file** | `wrangler d1 export` |
+| Build | `npm run build` | `NEXT_PUBLIC_STORAGE=cloudflare npm run build` (hoặc `npm run setup:cloudflare`) |
+
+Chế độ trên trình duyệt chạy **nguyên mã máy chủ** (`server/`) trong trang trên SQLite (sql.js) – cùng logic trùng lịch,
+import, tài khoản… như bản Cloudflare. Lưu ý: xoá dữ liệu duyệt web hoặc dùng chế độ ẩn danh sẽ mất dữ liệu; hãy tải bản sao
+lưu thường xuyên.
+
 ## Loại hình sử dụng
 
 Chọn khi thiết lập lần đầu, quản trị viên đổi được ở trang **Cài đặt** (áp dụng cho cả đơn vị; dữ liệu cũ giữ nguyên):
@@ -79,8 +94,8 @@ Nút **🎤 Giọng nói** trên trang lịch: nói (hoặc gõ) một câu, app
 | Phần | Công nghệ |
 | --- | --- |
 | Giao diện | Next.js 16 (App Router) – static export (`out/`), Tailwind CSS v4 |
-| API | Cloudflare Pages Functions – `functions/api/[[path]].ts` → `server/api.ts` |
-| CSDL | Cloudflare D1 (SQLite) – `migrations/` |
+| API | `server/api.ts` – chạy trong trình duyệt (`src/lib/local/`) hoặc trên Cloudflare Pages Functions (`functions/`) |
+| CSDL | SQLite: sql.js + localStorage (mặc định) hoặc Cloudflare D1 – chung `migrations/` |
 
 ```
 src/app/            Trang: / (lịch), /teachers, /rooms, /templates, /reports
@@ -123,7 +138,7 @@ quản trị viên. Lịch: quản trị viên, hoặc giảng viên là ngườ
 
 Buổi đã huỷ không tính là trùng lịch. Hai buổi nối tiếp (buổi trước kết thúc 09:00, buổi sau bắt đầu 09:00) không bị coi là trùng.
 
-## Lưu trữ & chi phí: mỗi đơn vị dùng tài khoản Cloudflare của chính mình
+## (Tuỳ chọn) Dữ liệu dùng chung: mỗi đơn vị dùng tài khoản Cloudflare của chính mình
 
 App không có máy chủ trung tâm: **mỗi trường / doanh nghiệp cài app lên tài khoản Cloudflare của họ**. Dữ liệu nằm trong
 cơ sở dữ liệu D1 của chính đơn vị đó, bạn (người phát triển) không phải trả tiền lưu trữ cho ai.
@@ -160,25 +175,31 @@ châu Á – `apac`) → ghi `database_id` vào `wrangler.toml` → tạo bảng
 
 [![Mở trong GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/thienvdt/scheduler?ref=claude/modest-einstein-wr43sn)
 
-Bấm nút trên (hoặc trên GitHub: **Code → Codespaces → Create codespace**). Lần đầu mất vài phút để tự cài, tạo CSDL
-và build; sau đó app Lịch tự mở trong tab mới (cổng 8788). App GVBM giả lập để thử import ở tab **Ports**, cổng 8790.
+Bấm nút trên (hoặc trên GitHub: **Code → Codespaces → Create codespace**). Lần đầu mất vài phút để tự cài và build;
+sau đó app Lịch tự mở trong tab mới (cổng 8788). App GVBM giả lập để thử import ở tab **Ports**, cổng 8790.
 Tài khoản GitHub cá nhân có sẵn giờ dùng Codespaces miễn phí mỗi tháng; nhớ **Stop** codespace khi thử xong.
+
+## Đăng lên mạng miễn phí: GitHub Pages
+
+Workflow `.github/workflows/pages.yml` tự build và đăng app mỗi khi đẩy code. Bật một lần trên GitHub:
+**Settings → Pages → Build and deployment → Source: GitHub Actions**, rồi vào tab **Actions** → *GitHub Pages* →
+*Run workflow*. App ở `https://<tài-khoản>.github.io/<tên-repo>/` (vd. https://thienvdt.github.io/scheduler/).
+Mỗi người mở link có dữ liệu riêng trong trình duyệt của mình.
 
 ## Chạy local
 
 ```bash
 npm install
-npm run db:migrate:local      # tạo bảng trong D1 local
-npm run db:seed:local         # (tuỳ chọn) dữ liệu mẫu + tài khoản mẫu:
-                              #   admin / admin12345 (quản trị), an / giangvien123, binh / giangvien123 (giảng viên)
-
-# Cách 1: dev có hot reload – 2 terminal
-npm run dev:api               # Pages Functions + D1 tại :8788
-npm run dev                   # Next.js tại :3000, proxy /api → :8788
-
-# Cách 2: chạy bản build giống production
-npm run preview               # http://localhost:8788
+npm run dev          # có hot reload: http://localhost:3000
+# hoặc bản build giống khi đăng web:
+npm run preview      # build rồi chạy http://localhost:8788  (lần sau chỉ cần: npm start)
 ```
+
+Không cần Cloudflare, wrangler hay cơ sở dữ liệu: dữ liệu nằm trong trình duyệt. Mở trang → chọn loại hình → tạo tài
+khoản quản trị (hoặc nạp dữ liệu mẫu ngay ở bước hướng dẫn đầu tiên).
+
+Chế độ Cloudflare ở local: `npm run db:migrate:local` rồi `npm run preview:cloudflare` (hoặc `npm run dev:api` +
+`npm run dev:cloudflare`); `npm run db:seed:local` nạp tài khoản mẫu admin / admin12345.
 
 Kiểm tra: `npm run typecheck`, `npm run lint`, `npm test`.
 
@@ -191,8 +212,7 @@ npm run demo:import      # terminal 2: app GVBM giả lập tại http://127.0.0
 
 Mở http://127.0.0.1:8790 – trang có thời khoá biểu mẫu và hướng dẫn 3 cách thử: dấu trang **📥 Gửi sang Lịch**
 (khác tên miền), đoạn mã dán vào Console của app lịch để thử **hộp hỏi import** (cùng tên miền), và file
-`demo/tkb-mau.csv`, `demo/tkb-mau.json`. Muốn làm lại từ đầu: xoá thư mục `.wrangler/state` rồi chạy lại
-`npm run db:migrate:local`.
+`demo/tkb-mau.csv`, `demo/tkb-mau.json`. Muốn làm lại từ đầu: Cài đặt → **Xoá dữ liệu trên trình duyệt**.
 
 ## Deploy thủ công lên Cloudflare Pages
 

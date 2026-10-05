@@ -20,7 +20,7 @@ const USER_COLUMNS = "id, username, display_name, role, teacher_id, created_at";
 const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
-async function pbkdf2(password: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {
+async function pbkdf2(password: string, salt: Uint8Array<ArrayBuffer>, iterations: number): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
   const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, key, 256);
   return new Uint8Array(bits);
@@ -60,7 +60,12 @@ function randomToken(): string {
 
 // ---------- Cookie & phiên ----------
 
+/** Ở chế độ lưu trên trình duyệt không có cookie thật (trình duyệt cấm đặt header Cookie), phiên đi qua header này. */
+const SESSION_HEADER = "x-lich-session";
+
 function readCookie(request: Request, name: string): string | null {
+  const local = request.headers.get(SESSION_HEADER);
+  if (local) return local;
   const header = request.headers.get("cookie");
   if (!header) return null;
   for (const part of header.split(";")) {
@@ -87,7 +92,8 @@ async function startSession(env: Env, request: Request, userId: string, body: un
     ),
   ]);
   const res = json(body, status);
-  res.headers.append("set-cookie", sessionCookie(request, token, SESSION_DAYS * 86400));
+  if (env.LOCAL) res.headers.set(SESSION_HEADER, token);
+  else res.headers.append("set-cookie", sessionCookie(request, token, SESSION_DAYS * 86400));
   return res;
 }
 
@@ -218,7 +224,8 @@ export async function handleAuth(env: Env, request: Request, action: string | un
     const token = readCookie(request, COOKIE);
     if (token) await env.DB.prepare("DELETE FROM auth_sessions WHERE token_hash = ?").bind(await sha256Hex(token)).run();
     const res = new Response(null, { status: 204 });
-    res.headers.append("set-cookie", sessionCookie(request, "", 0));
+    if (env.LOCAL) res.headers.set(SESSION_HEADER, "");
+    else res.headers.append("set-cookie", sessionCookie(request, "", 0));
     return res;
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
+import { BASE_PATH } from "@/lib/basePath";
 import { Button, Modal } from "./ui";
 
 // Sự kiện `beforeinstallprompt` (Chrome/Edge trên máy tính & Android) – chưa có trong lib DOM của TypeScript
@@ -28,7 +29,10 @@ if (typeof window !== "undefined") {
     emit();
   });
   if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
-    window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+    const register = () => navigator.serviceWorker.register(`${BASE_PATH}/sw.js`).catch(() => {});
+    // Mã này có thể chạy sau khi trang đã tải xong (sự kiện load đã qua) → đăng ký ngay
+    if (document.readyState === "complete") register();
+    else window.addEventListener("load", register);
   }
 }
 

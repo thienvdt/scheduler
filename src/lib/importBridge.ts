@@ -15,9 +15,9 @@ export interface Bridged {
   entries: Record<string, string>;
 }
 
-/** Mã bookmarklet cho trang lịch đang chạy ở `origin`. */
-export function bookmarklet(origin: string): string {
-  const code = `(()=>{const T=${JSON.stringify(origin)};const d={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);d[k]=localStorage.getItem(k)}const w=window.open(T+"/import/?bridge=1","_blank");if(!w){alert("Trình duyệt đã chặn cửa sổ mới – hãy cho phép cửa sổ bật lên rồi bấm lại.");return}const f=e=>{if(e.origin===T&&e.source===w&&e.data&&e.data.type===${JSON.stringify(BRIDGE_READY)}){w.postMessage({type:${JSON.stringify(BRIDGE_DATA)},entries:d,title:document.title},T);removeEventListener("message",f)}};addEventListener("message",f)})()`;
+/** Mã bookmarklet cho trang lịch đang chạy ở `origin` (+ thư mục con `base`, vd. "/scheduler"). */
+export function bookmarklet(origin: string, base = ""): string {
+  const code = `(()=>{const T=${JSON.stringify(origin)},B=${JSON.stringify(base)};const d={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);d[k]=localStorage.getItem(k)}const w=window.open(T+B+"/import/?bridge=1","_blank");if(!w){alert("Trình duyệt đã chặn cửa sổ mới – hãy cho phép cửa sổ bật lên rồi bấm lại.");return}const f=e=>{if(e.origin===T&&e.source===w&&e.data&&e.data.type===${JSON.stringify(BRIDGE_READY)}){w.postMessage({type:${JSON.stringify(BRIDGE_DATA)},entries:d,title:document.title},T);removeEventListener("message",f)}};addEventListener("message",f)})()`;
   return `javascript:${encodeURIComponent(code)}`;
 }
 

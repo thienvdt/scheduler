@@ -43,3 +43,6 @@ next-env.d.ts
 # cloudflare
 .wrangler
 .dev.vars*
+
+# chế độ lưu trên trình duyệt (chép từ node_modules khi dev/build)
+public/sql-wasm.wasm

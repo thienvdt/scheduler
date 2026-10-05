@@ -2,6 +2,8 @@
 
 export interface Env {
   DB: D1Database;
+  /** Chạy trong trình duyệt (dữ liệu lưu ở localStorage): phiên đăng nhập đi qua header thay cho cookie */
+  LOCAL?: boolean;
 }
 
 export class HttpError extends Error {

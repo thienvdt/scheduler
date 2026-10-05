@@ -2,6 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
+import { IS_LOCAL } from "@/lib/mode";
+import { LocalDataCard } from "@/components/LocalDataCard";
 import { useResource } from "@/lib/useResource";
 import type { SampleCounts } from "@/lib/api";
 import type { ProfileId } from "@/shared/types";
@@ -81,6 +83,8 @@ export default function SettingsPage() {
           <Alert tone={message.tone}>{message.text}</Alert>
         </div>
       )}
+
+      {IS_LOCAL && <LocalDataCard />}
 
       <GlassCard className="mb-4 p-5">
         <Field label="Tên đơn vị">

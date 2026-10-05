@@ -1,7 +1,9 @@
 // Service worker: cho phép cài app (PWA) và mở được giao diện khi mất mạng.
 // API (/api/*) luôn đi thẳng ra mạng – dữ liệu lịch không bị cache cũ.
-const CACHE = "lich-giang-v3";
-const SHELL = ["/", "/teachers/", "/rooms/", "/templates/", "/reports/", "/settings/", "/users/", "/manifest.webmanifest", "/icon-192.png"];
+const CACHE = "lich-giang-v4";
+// Đường dẫn tương đối với vị trí sw.js, để chạy được cả khi app nằm trong thư mục con (vd. GitHub Pages)
+const SHELL = ["./", "teachers/", "rooms/", "templates/", "reports/", "settings/", "users/", "import/", "manifest.webmanifest", "icon-192.png", "sql-wasm.wasm"];
+const ROOT = new URL("./", self.location).pathname;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -19,7 +21,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
-  if (request.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
+  if (request.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith(ROOT + "api/")) return;
 
   // Trang HTML: ưu tiên mạng (luôn bản mới), mất mạng thì dùng bản đã lưu
   if (request.mode === "navigate") {
@@ -30,7 +32,7 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE).then((c) => c.put(request, copy));
           return res;
         })
-        .catch(() => caches.match(request).then((r) => r || caches.match("/"))),
+        .catch(() => caches.match(request).then((r) => r || caches.match(ROOT))),
     );
     return;
   }
@@ -41,7 +43,7 @@ self.addEventListener("fetch", (event) => {
       (cached) =>
         cached ||
         fetch(request).then((res) => {
-          if (res.ok && url.pathname.startsWith("/_next/static/")) {
+          if (res.ok && (url.pathname.startsWith(ROOT + "_next/static/") || url.pathname.endsWith(".wasm"))) {
             const copy = res.clone();
             caches.open(CACHE).then((c) => c.put(request, copy));
           }

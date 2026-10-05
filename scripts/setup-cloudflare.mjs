@@ -41,6 +41,9 @@ function wrangler(args, { inherit = false, allowFail = false } = {}) {
   }
 }
 
+// Bản deploy lên Cloudflare dùng dữ liệu chung trên D1, không lưu trong trình duyệt
+process.env.NEXT_PUBLIC_STORAGE = "cloudflare";
+
 function run(cmd, args) {
   console.log(`${c.dim}$ ${cmd} ${args.join(" ")}${c.reset}`);
   if (DRY) return;

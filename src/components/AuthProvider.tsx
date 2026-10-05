@@ -1,5 +1,6 @@
 "use client";
 
+import { IS_LOCAL } from "@/lib/mode";
 import { createContext, useCallback, useContext, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { AuthState, ProfileId, Session, Settings, User } from "@/shared/types";
 import { MIN_PASSWORD_LENGTH, PROFILE_IDS } from "@/shared/types";
@@ -69,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
   if (status.state === "error") {
     return (
-      <CenteredCard title="Không kết nối được máy chủ">
+      <CenteredCard title={IS_LOCAL ? "Không mở được dữ liệu trên trình duyệt" : "Không kết nối được máy chủ"}>
         <Alert>{status.message}</Alert>
         <Button className="mt-4 w-full" onClick={load}>
           Thử lại
@@ -214,6 +215,11 @@ function SetupScreen({ onDone }: { onDone: (a: AuthState) => void }) {
             <p className="mt-2 text-sm text-white/60">
               App sẽ đổi cách gọi, loại lịch và mẫu lịch cho phù hợp. Có thể đổi lại trong Cài đặt.
             </p>
+            {IS_LOCAL && (
+              <p className="mt-2 text-xs text-white/50" data-testid="local-note">
+                🔒 Dữ liệu được lưu ngay trên trình duyệt này (localStorage), không gửi lên máy chủ nào. Nhớ tải bản sao lưu trong Cài đặt.
+              </p>
+            )}
           </div>
           <ProfilePicker value={null} onChange={setProfile} />
         </div>

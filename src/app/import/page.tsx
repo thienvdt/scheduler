@@ -12,6 +12,7 @@ import {
   type Dataset, type Mapping,
 } from "@/lib/importer";
 import { BRIDGE_READY, IMPORT_PICK, bookmarklet, readBridgeMessage, type Bridged } from "@/lib/importBridge";
+import { BASE_PATH } from "@/lib/basePath";
 import { useAuth } from "@/components/AuthProvider";
 import { Alert, Button, cn, Field, GlassCard, Input, PageHeader, Select, Textarea } from "@/components/ui";
 import { DATA_CHANGED_EVENT } from "@/components/Tour";
@@ -200,7 +201,7 @@ export default function ImportPage() {
               <li>
                 Kéo nút{" "}
                 <a
-                  ref={(el) => el?.setAttribute("href", bookmarklet(host))}
+                  ref={(el) => el?.setAttribute("href", bookmarklet(host, BASE_PATH))}
                   onClick={(e) => e.preventDefault()}
                   className="inline-block rounded-lg border border-cyan-300/50 bg-cyan-400/20 px-2 py-0.5 font-medium text-white"
                   data-testid="bookmarklet"

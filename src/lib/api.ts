@@ -1,3 +1,4 @@
+import { IS_LOCAL } from "./mode";
 import type {
   ApiError,
   Conflict,
@@ -37,8 +38,17 @@ export class ApiRequestError extends Error {
   }
 }
 
+/** Gửi tới máy chủ Cloudflare, hoặc tới "máy chủ" chạy ngay trong trình duyệt khi dữ liệu lưu ở localStorage. */
+async function transport(path: string, init: RequestInit): Promise<Response> {
+  if (IS_LOCAL) {
+    const { localFetch } = await import("./local/backend");
+    return localFetch(path, init);
+  }
+  return fetch(`/api${path}`, init);
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, {
+  const res = await transport(path, {
     ...init,
     headers: { "content-type": "application/json", ...init?.headers },
   });

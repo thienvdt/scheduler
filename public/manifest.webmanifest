@@ -3,33 +3,33 @@
   "short_name": "Lịch",
   "description": "Đặt lịch cho trường học, doanh nghiệp, văn phòng: phát hiện trùng lịch, mẫu lịch, tìm giờ trống.",
   "lang": "vi",
-  "id": "/",
-  "start_url": "/",
-  "scope": "/",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#0b1026",
   "theme_color": "#1e1b4b",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-maskable-512.png",
+      "src": "icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/icon.svg",
+      "src": "icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
@@ -38,20 +38,20 @@
   "shortcuts": [
     {
       "name": "Mẫu lịch",
-      "url": "/templates/",
+      "url": "templates/",
       "icons": [
         {
-          "src": "/icon-192.png",
+          "src": "icon-192.png",
           "sizes": "192x192"
         }
       ]
     },
     {
       "name": "Danh sách người",
-      "url": "/teachers/",
+      "url": "teachers/",
       "icons": [
         {
-          "src": "/icon-192.png",
+          "src": "icon-192.png",
           "sizes": "192x192"
         }
       ]
