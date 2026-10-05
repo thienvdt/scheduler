@@ -7,6 +7,8 @@ import { api, ApiRequestError } from "@/lib/api";
 import { formatFull, timeToMinutes } from "@/lib/date";
 import { endAfter, isTeachingKind, templateIcon } from "@/lib/templates";
 import { Alert, Button, cn, Field, Input, Modal, Select, Textarea } from "./ui";
+import { useAuth } from "./AuthProvider";
+import { ParticipantPicker } from "./ParticipantPicker";
 
 export interface SessionDraft {
   date: string;
@@ -19,6 +21,7 @@ export interface SessionDraft {
   repeat_weeks?: number;
   kind?: EventKind;
   note?: string;
+  participant_ids?: string[];
   /** Mẫu lịch đã dùng để điền form (nếu có). */
   template_id?: string;
   /** Câu lệnh giọng nói đã dùng để điền form (nếu có). */
@@ -36,6 +39,7 @@ interface FormState {
   note: string;
   repeat_weeks: number;
   kind: EventKind;
+  participant_ids: string[];
 }
 
 function initialForm(session: Session | null, draft: SessionDraft | null): FormState {
@@ -51,6 +55,7 @@ function initialForm(session: Session | null, draft: SessionDraft | null): FormS
       note: session.note ?? "",
       repeat_weeks: 1,
       kind: session.kind,
+      participant_ids: session.participant_ids ?? [],
     };
   }
   return {
@@ -64,6 +69,7 @@ function initialForm(session: Session | null, draft: SessionDraft | null): FormS
     note: draft?.note ?? "",
     repeat_weeks: draft?.repeat_weeks ?? 1,
     kind: draft?.kind ?? "lecture",
+    participant_ids: draft?.participant_ids ?? [],
   };
 }
 
@@ -75,6 +81,7 @@ export function SessionDialog({
   templates = [],
   onClose,
   onSaved,
+  onFindSlot,
 }: {
   session: Session | null;
   draft: SessionDraft | null;
@@ -83,8 +90,14 @@ export function SessionDialog({
   templates?: Template[];
   onClose: () => void;
   onSaved: () => void;
+  /** Mở công cụ tìm giờ trống với người/phòng/thời lượng của form */
+  onFindSlot?: (prefill: { teacher_ids: string[]; room_id: string; duration: number; date: string }) => void;
 }) {
-  const [form, setForm] = useState<FormState>(() => initialForm(session, draft));
+  const { isAdmin, canEdit, user } = useAuth();
+  const [form, setForm] = useState<FormState>(() => {
+    const f = initialForm(session, draft);
+    return !session && !isAdmin && user.teacher_id ? { ...f, teacher_id: user.teacher_id } : f;
+  });
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [busy, setBusy] = useState(false);
@@ -92,6 +105,9 @@ export function SessionDialog({
 
   const isEdit = session !== null;
   const cancelled = session?.status === "cancelled";
+  const readOnly = isEdit && !canEdit(session);
+  // Giảng viên chỉ đặt lịch do chính mình chủ trì
+  const hostLocked = !isAdmin;
 
   async function run(action: () => Promise<unknown>) {
     setBusy(true);
@@ -110,12 +126,13 @@ export function SessionDialog({
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    const payload = { ...form, class_name: form.class_name || null, note: form.note || null };
-    run(() =>
-      isEdit
-        ? api.sessions.update(session.id, { ...payload, repeat_weeks: undefined })
-        : api.sessions.create(payload),
-    );
+    const payload = {
+      ...form,
+      class_name: form.class_name || null,
+      note: form.note || null,
+      participant_ids: form.participant_ids.filter((id) => id !== form.teacher_id),
+    };
+    run(() => (isEdit ? api.sessions.update(session.id, { ...payload, repeat_weeks: undefined }) : api.sessions.create(payload)));
   }
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((f) => ({ ...f, [key]: value }));
@@ -130,7 +147,7 @@ export function SessionDialog({
       title: t.title ?? (previous && f.title === (previous.title ?? "") ? "" : f.title),
       end_time: endAfter(f.start_time, t.duration_minutes),
       repeat_weeks: t.repeat_weeks,
-      teacher_id: t.teacher_id ?? f.teacher_id,
+      teacher_id: hostLocked ? f.teacher_id : (t.teacher_id ?? f.teacher_id),
       room_id: t.room_id ?? f.room_id,
       note: !f.note || f.note === previous?.note ? (t.note ?? "") : f.note,
     }));
@@ -147,8 +164,13 @@ export function SessionDialog({
   const teaching = isTeachingKind(form.kind);
 
   return (
-    <Modal open title={isEdit ? `${KIND_META[form.kind].icon} Chi tiết lịch` : "Đặt lịch"} onClose={onClose}>
+    <Modal
+      open
+      title={isEdit ? `${KIND_META[form.kind].icon} Chi tiết lịch${readOnly ? " (chỉ xem)" : ""}` : "Đặt lịch"}
+      onClose={onClose}
+    >
       <form onSubmit={submit} className="flex flex-col gap-4">
+        {readOnly && <Alert tone="info">Bạn chỉ có thể sửa lịch do chính mình chủ trì.</Alert>}
         {!isEdit && templates.length > 0 && (
           <div>
             <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-white/60">Chọn mẫu</div>
@@ -172,11 +194,7 @@ export function SessionDialog({
           </div>
         )}
         {cancelled && <Alert tone="info">Lịch này đã bị huỷ.</Alert>}
-        {draft?.transcript && (
-          <Alert tone="info">
-            🎤 Đã điền từ câu: “{draft.transcript}”. Hãy kiểm tra lại trước khi lưu.
-          </Alert>
-        )}
+        {draft?.transcript && <Alert tone="info">🎤 Đã điền từ câu: “{draft.transcript}”. Hãy kiểm tra lại trước khi lưu.</Alert>}
         {error && (
           <Alert>
             <div className="font-medium">{error}</div>
@@ -185,95 +203,131 @@ export function SessionDialog({
                 {conflicts.map((c, i) => (
                   <li key={i}>
                     • {formatFull(c.date)} {c.session.start_time}–{c.session.end_time}:{" "}
-                    {c.kind === "teacher" ? `GV ${c.session.teacher_name} đã có lịch` : `phòng ${c.session.room_name} đã được dùng`}{" "}
+                    {c.kind === "teacher"
+                      ? `${c.teacher_name ?? c.session.teacher_name} đã có lịch`
+                      : `phòng ${c.session.room_name} đã được dùng`}{" "}
                     ({c.session.title})
                   </li>
                 ))}
               </ul>
             )}
+            {conflicts.length > 0 && onFindSlot && (
+              <Button
+                type="button"
+                className="mt-2 px-3 py-1 text-xs"
+                onClick={() =>
+                  onFindSlot({
+                    teacher_ids: [form.teacher_id, ...form.participant_ids].filter(Boolean),
+                    room_id: form.room_id,
+                    duration: Math.max(15, timeToMinutes(form.end_time) - timeToMinutes(form.start_time)),
+                    date: form.date,
+                  })
+                }
+              >
+                🔎 Tìm giờ trống phù hợp
+              </Button>
+            )}
           </Alert>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-[1fr_11rem]">
-          <Field label={teaching ? "Môn học *" : "Tiêu đề *"}>
-            <Input
-              required
-              value={form.title}
-              onChange={(e) => set("title", e.target.value)}
-              placeholder={teaching ? "VD: Lập trình Web" : "VD: Họp bộ môn tháng 10"}
+        <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-4">
+          <div className="grid gap-4 sm:grid-cols-[1fr_11rem]">
+            <Field label={teaching ? "Môn học *" : "Tiêu đề *"}>
+              <Input
+                required
+                value={form.title}
+                onChange={(e) => set("title", e.target.value)}
+                placeholder={teaching ? "VD: Lập trình Web" : "VD: Họp bộ môn tháng 10"}
+              />
+            </Field>
+            <Field label="Loại lịch">
+              <Select value={form.kind} onChange={(e) => set("kind", e.target.value as EventKind)}>
+                {EVENT_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {KIND_META[k].icon} {KIND_META[k].label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          {(teaching || form.kind === "exam" || form.class_name) && (
+            <Field label="Lớp">
+              <Input value={form.class_name} onChange={(e) => set("class_name", e.target.value)} placeholder="VD: CNTT-K66A" />
+            </Field>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={teaching ? "Giảng viên *" : "Chủ trì / Phụ trách *"}>
+              <Select required disabled={hostLocked} value={form.teacher_id} onChange={(e) => set("teacher_id", e.target.value)}>
+                <option value="">— Chọn giảng viên —</option>
+                {teachers.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Phòng *">
+              <Select required value={form.room_id} onChange={(e) => set("room_id", e.target.value)}>
+                <option value="">— Chọn phòng —</option>
+                {rooms.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                    {r.capacity !== null ? ` (${r.capacity} chỗ)` : ""}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <Field label="Ngày *" className="col-span-2 sm:col-span-1">
+              <Input type="date" required value={form.date} onChange={(e) => set("date", e.target.value)} />
+            </Field>
+            <Field label="Bắt đầu *">
+              <Input type="time" required step={300} value={form.start_time} onChange={(e) => changeStart(e.target.value)} />
+            </Field>
+            <Field label="Kết thúc *">
+              <Input type="time" required step={300} value={form.end_time} onChange={(e) => set("end_time", e.target.value)} />
+            </Field>
+          </div>
+
+          {!isEdit && (
+            <Field label="Lặp lại hằng tuần">
+              <Select value={form.repeat_weeks} onChange={(e) => set("repeat_weeks", Number(e.target.value))}>
+                {Array.from({ length: MAX_REPEAT_WEEKS }, (_, i) => i + 1).map((n) => (
+                  <option key={n} value={n}>
+                    {n === 1 ? "Không lặp" : `${n} tuần`}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
+
+          {(!teaching || form.participant_ids.length > 0) && (
+            <Field label={`Người tham dự${form.participant_ids.length ? ` (${form.participant_ids.length})` : ""}`}>
+              <ParticipantPicker
+                teachers={teachers}
+                hostId={form.teacher_id}
+                value={form.participant_ids}
+                onChange={(ids) => set("participant_ids", ids)}
+                disabled={readOnly}
+              />
+            </Field>
+          )}
+
+          <Field label={teaching ? "Ghi chú" : "Nội dung / Ghi chú"}>
+            <Textarea
+              value={form.note}
+              onChange={(e) => set("note", e.target.value)}
+              className={form.note.includes("\n") ? "min-h-32" : undefined}
             />
           </Field>
-          <Field label="Loại lịch">
-            <Select value={form.kind} onChange={(e) => set("kind", e.target.value as EventKind)}>
-              {EVENT_KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {KIND_META[k].icon} {KIND_META[k].label}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-        {(teaching || form.kind === "exam" || form.class_name) && (
-          <Field label="Lớp">
-            <Input value={form.class_name} onChange={(e) => set("class_name", e.target.value)} placeholder="VD: CNTT-K66A" />
-          </Field>
-        )}
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={teaching ? "Giảng viên *" : "Chủ trì / Phụ trách *"}>
-            <Select required value={form.teacher_id} onChange={(e) => set("teacher_id", e.target.value)}>
-              <option value="">— Chọn giảng viên —</option>
-              {teachers.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Phòng *">
-            <Select required value={form.room_id} onChange={(e) => set("room_id", e.target.value)}>
-              <option value="">— Chọn phòng —</option>
-              {rooms.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                  {r.capacity !== null ? ` (${r.capacity} chỗ)` : ""}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <Field label="Ngày *" className="col-span-2 sm:col-span-1">
-            <Input type="date" required value={form.date} onChange={(e) => set("date", e.target.value)} />
-          </Field>
-          <Field label="Bắt đầu *">
-            <Input type="time" required step={300} value={form.start_time} onChange={(e) => changeStart(e.target.value)} />
-          </Field>
-          <Field label="Kết thúc *">
-            <Input type="time" required step={300} value={form.end_time} onChange={(e) => set("end_time", e.target.value)} />
-          </Field>
-        </div>
-
-        {!isEdit && (
-          <Field label="Lặp lại hằng tuần">
-            <Select value={form.repeat_weeks} onChange={(e) => set("repeat_weeks", Number(e.target.value))}>
-              {Array.from({ length: MAX_REPEAT_WEEKS }, (_, i) => i + 1).map((n) => (
-                <option key={n} value={n}>
-                  {n === 1 ? "Không lặp" : `${n} tuần`}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        )}
-
-        <Field label={teaching ? "Ghi chú" : "Nội dung / Ghi chú"}>
-          <Textarea value={form.note} onChange={(e) => set("note", e.target.value)} className={form.note.includes("\n") ? "min-h-32" : undefined} />
-        </Field>
+        </fieldset>
 
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
           <div className="flex flex-wrap gap-2">
-            {isEdit && (
+            {isEdit && !readOnly && (
               <>
                 <Button
                   type="button"
@@ -310,9 +364,11 @@ export function SessionDialog({
             <Button type="button" onClick={onClose}>
               Đóng
             </Button>
-            <Button type="submit" variant="primary" disabled={busy}>
-              {busy ? "Đang lưu…" : isEdit ? "Lưu" : "Đặt lịch"}
-            </Button>
+            {!readOnly && (
+              <Button type="submit" variant="primary" disabled={busy}>
+                {busy ? "Đang lưu…" : isEdit ? "Lưu" : "Đặt lịch"}
+              </Button>
+            )}
           </div>
         </div>
       </form>

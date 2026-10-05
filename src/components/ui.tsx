@@ -120,3 +120,26 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
     </div>
   );
 }
+
+export function Toast({ message, tone = "error", onClose }: { message: string; tone?: "error" | "info"; onClose: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 5000);
+    return () => clearTimeout(t);
+  }, [message, onClose]);
+  return (
+    <div className="fixed inset-x-0 bottom-4 z-[60] flex justify-center px-4" role="status" aria-live="polite">
+      <div
+        className={cn(
+          "glass-strong flex max-w-lg items-start gap-3 rounded-2xl px-4 py-3 text-sm",
+          tone === "error" ? "border-rose-300/40" : "border-cyan-300/40",
+        )}
+      >
+        <span>{tone === "error" ? "⚠️" : "✅"}</span>
+        <span className="flex-1 whitespace-pre-line">{message}</span>
+        <button onClick={onClose} className="text-white/60 hover:text-white" aria-label="Đóng thông báo">
+          ✕
+        </button>
+      </div>
+    </div>
+  );
+}

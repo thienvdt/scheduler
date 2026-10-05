@@ -5,6 +5,7 @@ import type { EventKind, Room, Teacher, Template } from "@/shared/types";
 import { EVENT_KINDS, KIND_META, MAX_REPEAT_WEEKS } from "@/shared/types";
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
+import { useAuth } from "@/components/AuthProvider";
 import { formatDuration, templateIcon } from "@/lib/templates";
 import { Alert, Button, Field, GlassCard, Input, Modal, PageHeader, Select, Textarea } from "@/components/ui";
 
@@ -37,6 +38,7 @@ const empty: TemplateForm = {
 const ICONS = ["👥", "🏛️", "🎤", "📝", "🎓", "💬", "📚", "🧪", "📌", "🗓️", "☕", "🧑‍🏫"];
 
 export default function TemplatesPage() {
+  const { isAdmin } = useAuth();
   const { data: items, loading, error: loadError, reload } = useResource(api.templates.list, [] as Template[]);
   const { data: teachers } = useResource(api.teachers.list, [] as Teacher[]);
   const { data: rooms } = useResource(api.rooms.list, [] as Room[]);
@@ -135,9 +137,11 @@ export default function TemplatesPage() {
         title="Mẫu lịch"
         subtitle="Mẫu có sẵn cho họp, seminar, coi thi… Chọn mẫu khi đặt lịch để điền nhanh."
         actions={
-          <Button variant="primary" onClick={openCreate}>
-            + Tạo mẫu
-          </Button>
+          isAdmin && (
+            <Button variant="primary" onClick={openCreate}>
+              + Tạo mẫu
+            </Button>
+          )
         }
       />
 
@@ -165,8 +169,12 @@ export default function TemplatesPage() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-1.5 text-xs">
-                <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1">⏱ {formatDuration(t.duration_minutes)}</span>
-                {t.start_time && <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1">🕗 {t.start_time}</span>}
+                <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1">
+                  ⏱ {formatDuration(t.duration_minutes)}
+                </span>
+                {t.start_time && (
+                  <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1">🕗 {t.start_time}</span>
+                )}
                 {t.repeat_weeks > 1 && (
                   <span className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1">🔁 {t.repeat_weeks} tuần</span>
                 )}
@@ -177,17 +185,19 @@ export default function TemplatesPage() {
                 )}
               </div>
               {t.note && <p className="line-clamp-3 whitespace-pre-line text-sm text-white/60">{t.note}</p>}
-              <div className="mt-auto flex gap-2">
-                <Button className="flex-1" onClick={() => openEdit(t)}>
-                  Sửa
-                </Button>
-                <Button onClick={() => duplicate(t)} title="Nhân bản">
-                  ⧉
-                </Button>
-                <Button variant="danger" onClick={() => remove(t)}>
-                  Xoá
-                </Button>
-              </div>
+              {isAdmin && (
+                <div className="mt-auto flex gap-2">
+                  <Button className="flex-1" onClick={() => openEdit(t)}>
+                    Sửa
+                  </Button>
+                  <Button onClick={() => duplicate(t)} title="Nhân bản">
+                    ⧉
+                  </Button>
+                  <Button variant="danger" onClick={() => remove(t)}>
+                    Xoá
+                  </Button>
+                </div>
+              )}
             </GlassCard>
           ))}
         </div>
@@ -199,7 +209,13 @@ export default function TemplatesPage() {
             {error && <Alert>{error}</Alert>}
             <div className="grid gap-4 sm:grid-cols-[1fr_11rem]">
               <Field label="Tên mẫu *">
-                <Input required autoFocus value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="VD: Họp giao ban tuần" />
+                <Input
+                  required
+                  autoFocus
+                  value={form.name}
+                  onChange={(e) => set("name", e.target.value)}
+                  placeholder="VD: Họp giao ban tuần"
+                />
               </Field>
               <Field label="Loại lịch">
                 <Select value={form.kind} onChange={(e) => set("kind", e.target.value as EventKind)}>
@@ -229,7 +245,11 @@ export default function TemplatesPage() {
               </div>
             </Field>
             <Field label="Tiêu đề mặc định">
-              <Input value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="Để trống nếu mỗi lần một khác" />
+              <Input
+                value={form.title}
+                onChange={(e) => set("title", e.target.value)}
+                placeholder="Để trống nếu mỗi lần một khác"
+              />
             </Field>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               <Field label="Thời lượng (phút) *">

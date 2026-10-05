@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import type { Room } from "@/shared/types";
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
+import { useAuth } from "@/components/AuthProvider";
 import { Alert, Button, Field, GlassCard, Input, Modal, PageHeader, Textarea } from "@/components/ui";
 
 interface RoomForm {
@@ -16,6 +17,7 @@ interface RoomForm {
 const empty: RoomForm = { name: "", building: "", capacity: "", equipment: "" };
 
 export default function RoomsPage() {
+  const { isAdmin } = useAuth();
   const { data: items, loading, error: loadError, reload } = useResource(api.rooms.list, [] as Room[]);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Room | null>(null);
@@ -67,16 +69,18 @@ export default function RoomsPage() {
         title="Phòng học"
         subtitle={`${items.length} phòng`}
         actions={
-          <Button
-            variant="primary"
-            onClick={() => {
-              setEditing(null);
-              setError(null);
-              setForm(empty);
-            }}
-          >
-            + Thêm phòng
-          </Button>
+          isAdmin && (
+            <Button
+              variant="primary"
+              onClick={() => {
+                setEditing(null);
+                setError(null);
+                setForm(empty);
+              }}
+            >
+              + Thêm phòng
+            </Button>
+          )
         }
       />
 
@@ -106,14 +110,16 @@ export default function RoomsPage() {
                 )}
               </div>
               {r.equipment && <p className="text-sm text-white/70">🛠 {r.equipment}</p>}
-              <div className="mt-auto flex gap-2">
-                <Button className="flex-1" onClick={() => openEdit(r)}>
-                  Sửa
-                </Button>
-                <Button variant="danger" onClick={() => remove(r)}>
-                  Xoá
-                </Button>
-              </div>
+              {isAdmin && (
+                <div className="mt-auto flex gap-2">
+                  <Button className="flex-1" onClick={() => openEdit(r)}>
+                    Sửa
+                  </Button>
+                  <Button variant="danger" onClick={() => remove(r)}>
+                    Xoá
+                  </Button>
+                </div>
+              )}
             </GlassCard>
           ))}
         </div>
@@ -132,7 +138,12 @@ export default function RoomsPage() {
               </Field>
             </div>
             <Field label="Sức chứa">
-              <Input type="number" min={0} value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} />
+              <Input
+                type="number"
+                min={0}
+                value={form.capacity}
+                onChange={(e) => setForm({ ...form, capacity: e.target.value })}
+              />
             </Field>
             <Field label="Thiết bị">
               <Textarea

@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "./AuthProvider";
 import { InstallButton } from "./InstallButton";
+import { UserMenu } from "./UserMenu";
 import { cn } from "./ui";
 
 const links = [
@@ -11,10 +13,12 @@ const links = [
   { href: "/rooms/", label: "Phòng học" },
   { href: "/templates/", label: "Mẫu lịch" },
   { href: "/reports/", label: "Báo cáo" },
+  { href: "/users/", label: "Tài khoản", adminOnly: true },
 ];
 
 export function Nav() {
   const pathname = usePathname();
+  const { isAdmin } = useAuth();
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href.replace(/\/$/, "")));
 
   return (
@@ -28,7 +32,7 @@ export function Nav() {
           <span>Lịch Giảng</span>
         </Link>
         <div className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto px-1 sm:order-2 sm:ml-auto sm:w-auto">
-          {links.map((l) => (
+          {links.filter((l) => !l.adminOnly || isAdmin).map((l) => (
             <Link
               key={l.href}
               href={l.href}
@@ -41,8 +45,9 @@ export function Nav() {
             </Link>
           ))}
         </div>
-        <div className="order-2 ml-auto sm:order-3 sm:ml-0">
+        <div className="order-2 ml-auto flex items-center gap-2 sm:order-3 sm:ml-0">
           <InstallButton />
+          <UserMenu />
         </div>
       </nav>
     </header>

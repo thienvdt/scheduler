@@ -9,7 +9,13 @@ import type {
   TeacherInput,
   Template,
   TemplateInput,
+  AuthState,
+  User,
+  UserInput,
 } from "@/shared/types";
+
+/** Phát ra khi API trả 401 (hết phiên đăng nhập) để giao diện quay về màn hình đăng nhập. */
+export const AUTH_REQUIRED_EVENT = "lich-giang:auth-required";
 
 export class ApiRequestError extends Error {
   constructor(
@@ -30,6 +36,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const data = (await res.json().catch(() => null)) as T | ApiError | null;
   if (!res.ok) {
     const err = data as ApiError | null;
+    if (res.status === 401 && !path.startsWith("/auth/")) window.dispatchEvent(new Event(AUTH_REQUIRED_EVENT));
     throw new ApiRequestError(res.status, err?.error ?? `Lỗi ${res.status}`, err?.conflicts);
   }
   return data as T;
@@ -41,6 +48,21 @@ const send = (method: string, body?: unknown): RequestInit => ({
 });
 
 export const api = {
+  auth: {
+    me: () => request<AuthState>("/auth/me"),
+    setup: (input: { username: string; display_name: string; password: string }) =>
+      request<AuthState>("/auth/setup", send("POST", input)),
+    login: (username: string, password: string) => request<AuthState>("/auth/login", send("POST", { username, password })),
+    logout: () => request<void>("/auth/logout", send("POST")),
+    changePassword: (current_password: string, new_password: string) =>
+      request<void>("/auth/password", send("POST", { current_password, new_password })),
+  },
+  users: {
+    list: () => request<User[]>("/users"),
+    create: (input: UserInput) => request<User>("/users", send("POST", input)),
+    update: (id: string, input: Partial<UserInput>) => request<User>(`/users/${id}`, send("PUT", input)),
+    remove: (id: string) => request<void>(`/users/${id}`, send("DELETE")),
+  },
   teachers: {
     list: () => request<Teacher[]>("/teachers"),
     create: (input: TeacherInput) => request<Teacher>("/teachers", send("POST", input)),

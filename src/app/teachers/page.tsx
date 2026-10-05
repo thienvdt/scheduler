@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import type { Teacher, TeacherInput } from "@/shared/types";
 import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
+import { useAuth } from "@/components/AuthProvider";
 import { Alert, Button, Field, GlassCard, Input, Modal, PageHeader } from "@/components/ui";
 
 const PALETTE = ["#60a5fa", "#f472b6", "#34d399", "#fbbf24", "#a78bfa", "#f87171", "#22d3ee", "#fb923c"];
@@ -11,6 +12,7 @@ const PALETTE = ["#60a5fa", "#f472b6", "#34d399", "#fbbf24", "#a78bfa", "#f87171
 const empty: TeacherInput = { name: "", email: "", phone: "", department: "", color: PALETTE[0] };
 
 export default function TeachersPage() {
+  const { isAdmin } = useAuth();
   const { data: items, loading, error: loadError, reload } = useResource(api.teachers.list, [] as Teacher[]);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Teacher | null>(null);
@@ -58,9 +60,7 @@ export default function TeachersPage() {
   }
 
   const q = query.trim().toLowerCase();
-  const filtered = q
-    ? items.filter((t) => [t.name, t.email, t.department].some((v) => v?.toLowerCase().includes(q)))
-    : items;
+  const filtered = q ? items.filter((t) => [t.name, t.email, t.department].some((v) => v?.toLowerCase().includes(q))) : items;
 
   return (
     <>
@@ -68,9 +68,11 @@ export default function TeachersPage() {
         title="Giảng viên"
         subtitle={`${items.length} giảng viên`}
         actions={
-          <Button variant="primary" onClick={openCreate}>
-            + Thêm giảng viên
-          </Button>
+          isAdmin && (
+            <Button variant="primary" onClick={openCreate}>
+              + Thêm giảng viên
+            </Button>
+          )
         }
       />
 
@@ -108,14 +110,16 @@ export default function TeachersPage() {
                 {t.email && <div className="truncate">✉ {t.email}</div>}
                 {t.phone && <div>☎ {t.phone}</div>}
               </div>
-              <div className="mt-auto flex gap-2">
-                <Button className="flex-1" onClick={() => openEdit(t)}>
-                  Sửa
-                </Button>
-                <Button variant="danger" onClick={() => remove(t)}>
-                  Xoá
-                </Button>
-              </div>
+              {isAdmin && (
+                <div className="mt-auto flex gap-2">
+                  <Button className="flex-1" onClick={() => openEdit(t)}>
+                    Sửa
+                  </Button>
+                  <Button variant="danger" onClick={() => remove(t)}>
+                    Xoá
+                  </Button>
+                </div>
+              )}
             </GlassCard>
           ))}
         </div>

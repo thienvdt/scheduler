@@ -75,6 +75,7 @@ export function AgendaList({
                           </span>
                           <span className="block truncate text-sm text-white/60">
                             📍 {s.room_name} · 👤 {s.teacher_name}
+                            {s.participant_ids?.length ? ` +${s.participant_ids.length} người` : ""}
                           </span>
                         </span>
                       </button>

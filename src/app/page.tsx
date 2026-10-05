@@ -8,11 +8,13 @@ import { endAfter, isTeachingKind } from "@/lib/templates";
 import { TemplatePicker } from "@/components/TemplatePicker";
 import { AgendaList } from "@/components/AgendaList";
 import { ExportDialog } from "@/components/ExportDialog";
-import { api } from "@/lib/api";
+import { useAuth } from "@/components/AuthProvider";
+import { FreeSlotFinder, type FinderPrefill, type PickedSlot } from "@/components/FreeSlotFinder";
+import { api, ApiRequestError } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
-import { addDays, formatDayMonth, minutesToTime, startOfWeek, timeToMinutes, today } from "@/lib/date";
-import { Alert, Button, GlassCard, PageHeader, Select } from "@/components/ui";
-import { DAY_END, WeekCalendar } from "@/components/WeekCalendar";
+import { addDays, formatDayMonth, formatFull, minutesToTime, startOfWeek, timeToMinutes, today } from "@/lib/date";
+import { Alert, Button, GlassCard, PageHeader, Select, Toast } from "@/components/ui";
+import { DAY_END, WeekCalendar, type SessionChange } from "@/components/WeekCalendar";
 import { SessionDialog, type SessionDraft } from "@/components/SessionDialog";
 import { VoiceCommand } from "@/components/VoiceCommand";
 import type { ParsedCommand } from "@/lib/voiceParser";
@@ -29,6 +31,10 @@ function subscribeSmall(cb: () => void) {
 type DialogState = { session: Session | null; draft: SessionDraft | null } | null;
 
 export default function CalendarPage() {
+  const { canBook, canEdit, isAdmin, user } = useAuth();
+  const [finder, setFinder] = useState<{ prefill?: FinderPrefill } | null>(null);
+  const [toast, setToast] = useState<{ message: string; tone: "error" | "info" } | null>(null);
+  const closeToast = useCallback(() => setToast(null), []);
   const [weekStart, setWeekStart] = useState(() => startOfWeek(today()));
   const [teacherId, setTeacherId] = useState("");
   const [roomId, setRoomId] = useState("");
@@ -58,7 +64,12 @@ export default function CalendarPage() {
       }),
     [weekStart, weekEnd, teacherId, roomId, kind],
   );
-  const { data: sessions, error: sessionsError, reload: reloadSessions } = useResource(fetchSessions, [] as Session[]);
+  const {
+    data: sessions,
+    error: sessionsError,
+    reload: reloadSessions,
+    mutate: mutateSessions,
+  } = useResource(fetchSessions, [] as Session[]);
   const teachers = teachersRes.data;
   const rooms = roomsRes.data;
   const error = teachersRes.error ?? roomsRes.error ?? sessionsError;
@@ -106,6 +117,49 @@ export default function CalendarPage() {
     });
   }
 
+  function openFromSlot(slot: PickedSlot) {
+    // Giảng viên luôn là người chủ trì lịch mình đặt; quản trị viên: người đầu tiên được chọn
+    const host = !isAdmin && user.teacher_id ? user.teacher_id : slot.teacher_ids[0];
+    const others = slot.teacher_ids.filter((id) => id !== host);
+    setFinder(null);
+    setWeekStart(startOfWeek(slot.date));
+    setDialog({
+      session: null,
+      draft: {
+        date: slot.date,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        teacher_id: host,
+        room_id: slot.room_id,
+        participant_ids: others,
+        kind: others.length ? "meeting" : "lecture",
+      },
+    });
+  }
+
+  /** Lưu sau khi kéo thả; lỗi (vd. trùng lịch) → thông báo và để lịch trở về chỗ cũ */
+  async function moveSession(s: Session, change: SessionChange) {
+    try {
+      const updated = await api.sessions.update(s.id, change);
+      mutateSessions((list) => list.map((x) => (x.id === s.id ? updated : x)));
+      setToast({ message: `Đã cập nhật “${s.title}”: ${formatFull(change.date)}, ${change.start_time}–${change.end_time}`, tone: "info" });
+    } catch (err) {
+      let message = (err as Error).message;
+      if (err instanceof ApiRequestError && err.conflicts.length) {
+        message += ":\n" + err.conflicts
+          .slice(0, 3)
+          .map((c) =>
+            c.kind === "teacher"
+              ? `• ${c.teacher_name ?? c.session.teacher_name} đã có “${c.session.title}” ${c.session.start_time}–${c.session.end_time}`
+              : `• Phòng ${c.session.room_name} đã có “${c.session.title}” ${c.session.start_time}–${c.session.end_time}`,
+          )
+          .join("\n");
+      }
+      setToast({ message, tone: "error" });
+      throw err;
+    }
+  }
+
   function openFromVoice(parsed: ParsedCommand, transcript: string) {
     const date = parsed.date ?? today();
     const start = parsed.start_time ?? "07:00";
@@ -126,7 +180,8 @@ export default function CalendarPage() {
     });
   }
 
-  const ready = teachers.length > 0 && rooms.length > 0;
+  const hasData = teachers.length > 0 && rooms.length > 0;
+  const ready = hasData && canBook;
   const metaLoading = teachersRes.loading || roomsRes.loading;
 
   return (
@@ -138,6 +193,9 @@ export default function CalendarPage() {
           <>
             <Button onClick={() => setVoiceOpen(true)} disabled={!ready} title="Đặt lịch bằng giọng nói">
               🎤 Giọng nói
+            </Button>
+            <Button onClick={() => setFinder({})} disabled={!ready}>
+              🔎 Tìm giờ trống
             </Button>
             <Button onClick={() => setPickerOpen(true)} disabled={!ready || templates.length === 0}>
               📋 Từ mẫu
@@ -223,7 +281,13 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {!ready && !metaLoading && !error && (
+      {hasData && !canBook && (
+        <div className="mb-4">
+          <Alert tone="info">Tài khoản của bạn chưa được liên kết với hồ sơ giảng viên nên chỉ xem được lịch. Hãy liên hệ quản trị viên.</Alert>
+        </div>
+      )}
+
+      {!hasData && !metaLoading && !error && (
         <div className="mb-4">
           <Alert tone="info">
             Hãy thêm ít nhất một <Link className="underline" href="/teachers/">giảng viên</Link> và một{" "}
@@ -238,6 +302,8 @@ export default function CalendarPage() {
           sessions={sessions}
           onSlotClick={(date, start) => ready && openNew(date, start)}
           onSessionClick={(s) => setDialog({ session: s, draft: null })}
+          canDrag={canEdit}
+          onMove={moveSession}
         />
       ) : (
         <AgendaList
@@ -259,6 +325,7 @@ export default function CalendarPage() {
           ]
             .filter(Boolean)
             .join(", ")}
+          teachers={teachers}
           onClose={() => setExportOpen(false)}
         />
       )}
@@ -266,6 +333,19 @@ export default function CalendarPage() {
       {voiceOpen && (
         <VoiceCommand teachers={teachers} rooms={rooms} onClose={() => setVoiceOpen(false)} onSubmit={openFromVoice} />
       )}
+
+      {finder && (
+        <FreeSlotFinder
+          teachers={teachers}
+          rooms={rooms}
+          weekStart={weekStart}
+          prefill={finder.prefill}
+          onClose={() => setFinder(null)}
+          onPick={openFromSlot}
+        />
+      )}
+
+      {toast && <Toast message={toast.message} tone={toast.tone} onClose={closeToast} />}
 
       {pickerOpen && <TemplatePicker templates={templates} onClose={() => setPickerOpen(false)} onPick={openFromTemplate} />}
 
@@ -277,6 +357,10 @@ export default function CalendarPage() {
           teachers={teachers}
           rooms={rooms}
           templates={templates}
+          onFindSlot={(prefill) => {
+            setDialog(null);
+            setFinder({ prefill });
+          }}
           onClose={() => setDialog(null)}
           onSaved={() => {
             setDialog(null);

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
 import { Nav } from "@/components/Nav";
+import { AuthProvider } from "@/components/AuthProvider";
 import "./globals.css";
 
 const beVietnam = Be_Vietnam_Pro({
@@ -35,8 +36,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <div className="blob blob-2" />
           <div className="blob blob-3" />
         </div>
-        <Nav />
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">{children}</main>
+        <AuthProvider>
+          <Nav />
+          <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">{children}</main>
+        </AuthProvider>
       </body>
     </html>
   );

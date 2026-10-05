@@ -15,19 +15,23 @@ export interface TeacherWorkload {
 
 const emptyKinds = () => Object.fromEntries(EVENT_KINDS.map((k) => [k, 0])) as Record<EventKind, number>;
 
-/** Tổng hợp số buổi và số phút theo giảng viên; buổi đã huỷ chỉ được đếm, không tính giờ. */
+/**
+ * Tổng hợp số buổi và số phút theo giảng viên – tính cho cả người chủ trì và người tham dự;
+ * buổi đã huỷ chỉ được đếm, không tính giờ.
+ */
 export function buildWorkload(sessions: Session[], teachers: Teacher[]): TeacherWorkload[] {
   const rows = new Map<string, TeacherWorkload>();
-  const rowFor = (s: Session) => {
-    let row = rows.get(s.teacher_id);
+  const rowFor = (s: Session, teacherId: string) => {
+    let row = rows.get(teacherId);
     if (!row) {
-      const t = teachers.find((x) => x.id === s.teacher_id);
+      const t = teachers.find((x) => x.id === teacherId);
+      const isHost = teacherId === s.teacher_id;
       row = {
         teacher: {
-          id: s.teacher_id,
-          name: t?.name ?? s.teacher_name ?? "?",
+          id: teacherId,
+          name: t?.name ?? (isHost ? s.teacher_name : undefined) ?? "?",
           department: t?.department ?? null,
-          color: t?.color ?? s.teacher_color ?? "#60a5fa",
+          color: t?.color ?? (isHost ? s.teacher_color : undefined) ?? "#60a5fa",
         },
         teachingSessions: 0,
         teachingMinutes: 0,
@@ -36,25 +40,27 @@ export function buildWorkload(sessions: Session[], teachers: Teacher[]): Teacher
         cancelled: 0,
         minutesByKind: emptyKinds(),
       };
-      rows.set(s.teacher_id, row);
+      rows.set(teacherId, row);
     }
     return row;
   };
 
   for (const s of sessions) {
-    const row = rowFor(s);
-    if (s.status === "cancelled") {
-      row.cancelled++;
-      continue;
-    }
     const minutes = timeToMinutes(s.end_time) - timeToMinutes(s.start_time);
-    row.minutesByKind[s.kind] = (row.minutesByKind[s.kind] ?? 0) + minutes;
-    if (isTeachingKind(s.kind)) {
-      row.teachingSessions++;
-      row.teachingMinutes += minutes;
-    } else {
-      row.otherSessions++;
-      row.otherMinutes += minutes;
+    for (const teacherId of new Set([s.teacher_id, ...(s.participant_ids ?? [])])) {
+      const row = rowFor(s, teacherId);
+      if (s.status === "cancelled") {
+        row.cancelled++;
+        continue;
+      }
+      row.minutesByKind[s.kind] = (row.minutesByKind[s.kind] ?? 0) + minutes;
+      if (isTeachingKind(s.kind)) {
+        row.teachingSessions++;
+        row.teachingMinutes += minutes;
+      } else {
+        row.otherSessions++;
+        row.otherMinutes += minutes;
+      }
     }
   }
 

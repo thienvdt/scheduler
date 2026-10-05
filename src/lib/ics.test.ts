@@ -16,6 +16,7 @@ const session = (over: Partial<Session> = {}): Session => ({
   status: "scheduled",
   kind: "meeting",
   created_at: "",
+  participant_ids: ["c"],
   teacher_name: "TS. Trần Thị Bình",
   room_name: "A202",
   ...over,
@@ -39,12 +40,14 @@ describe("ics", () => {
       calendarName: "Lịch",
       now: new Date("2026-10-04T00:00:00Z"),
       reminderMinutes: 15,
+      teacherName: (id) => ({ c: "PGS. Lê Minh Cường" })[id],
     });
     const unfolded = ics.replace(/\r\n /g, "");
     expect(unfolded).toContain("DTSTART;TZID=Asia/Ho_Chi_Minh:20261006T140000");
     expect(unfolded).toContain("DTEND;TZID=Asia/Ho_Chi_Minh:20261006T153000");
     expect(unfolded).toContain("SUMMARY:👥 Họp bộ môn");
     expect(unfolded).toContain("LOCATION:Phòng A202");
+    expect(unfolded).toContain("Tham dự: PGS. Lê Minh Cường");
     expect(unfolded).toContain("1. Báo cáo\\, tổng kết\\; kế hoạch");
     expect(unfolded).toContain("DTSTAMP:20261004T000000Z");
     expect(unfolded.match(/BEGIN:VALARM/g)).toHaveLength(1);

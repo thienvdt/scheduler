@@ -11,6 +11,16 @@ tự động **phát hiện trùng lịch** (cùng giảng viên hoặc cùng ph
   nhân bản. Chọn mẫu bằng nút **📋 Từ mẫu** hoặc các nút mẫu trong form đặt lịch để điền sẵn tiêu đề, thời lượng, giờ, phòng,
   người chủ trì, nội dung.
 - **Phát hiện trùng lịch** theo giảng viên và phòng, **lặp hằng tuần**, huỷ / khôi phục, xoá chuỗi lặp.
+- **Người tham dự:** cuộc họp, seminar… có nhiều người tham dự (nút *+ Cả khoa* mời nhanh cả bộ môn của người chủ trì).
+  Trùng lịch được kiểm tra cho **tất cả** người chủ trì và người tham dự; lọc theo giảng viên và báo cáo khối lượng cũng
+  tính cả lịch người đó tham dự.
+- **Đăng nhập & phân quyền:** *Quản trị viên* quản lý mọi thứ (giảng viên, phòng, mẫu lịch, tài khoản, mọi lịch).
+  *Giảng viên* xem toàn bộ lịch, nhưng chỉ tạo / sửa / xoá lịch do chính mình chủ trì; lịch của người khác mở ở chế độ chỉ xem.
+- **Kéo thả** trên lịch tuần (chuột/bút): kéo khối để đổi ngày, giờ; kéo mép dưới để đổi thời lượng (bước 15 phút, Esc để huỷ).
+  Nếu trùng lịch, app báo lỗi và đưa lịch về chỗ cũ. Trên màn hình cảm ứng giữ thao tác cuộn – chạm để mở và sửa.
+- **Tìm giờ trống:** chọn những người cần có mặt, thời lượng, tuần, buổi (sáng/chiều/tối), phòng hoặc sức chứa tối thiểu →
+  danh sách khung giờ mọi người cùng rảnh và còn phòng trống. Bấm một khung giờ để đặt lịch ngay (đã điền sẵn người tham dự,
+  phòng). Khi đặt lịch bị trùng, nút *Tìm giờ trống phù hợp* mở công cụ này với thông tin của form.
 - **Đặt lịch bằng giọng nói** (xem bên dưới).
 - **Xuất lịch .ics** (nút 📅 Xuất .ics) theo bộ lọc đang chọn – tuần / 4 tuần / học kỳ, có nhắc trước – để nhập vào
   Google Calendar, Outlook, Lịch điện thoại.
@@ -45,9 +55,10 @@ Nút **🎤 Giọng nói** trên trang lịch: nói (hoặc gõ) một câu, app
 src/app/            Trang: / (lịch), /teachers, /rooms, /templates, /reports
 src/components/     UI glass, WeekCalendar, SessionDialog
 src/shared/types.ts Kiểu dữ liệu dùng chung cho UI và API
-server/             Router API + logic kiểm tra trùng lịch (có unit test)
+server/             api.ts (router, danh mục), sessions.ts (lịch, trùng lịch), auth.ts (đăng nhập, tài khoản)
 functions/          Entry Pages Functions
-migrations/         Schema D1 (0001 bảng chính, 0002 loại lịch + mẫu lịch)
+migrations/         Schema D1 (0001 bảng chính, 0002 loại lịch + mẫu lịch, 0003 người tham dự + tài khoản)
+scripts/            hash-password.mjs – tạo mã băm mật khẩu (đặt lại mật khẩu quản trị)
 public/             Manifest, icon, service worker (PWA)
 seed/seed.sql       Dữ liệu mẫu
 ```
@@ -56,6 +67,9 @@ seed/seed.sql       Dữ liệu mẫu
 
 | Method | Đường dẫn | Mô tả |
 | --- | --- | --- |
+| GET | `/api/auth/me` | Người dùng hiện tại, `needs_setup` khi chưa có tài khoản nào |
+| POST | `/api/auth/setup` · `login` · `logout` · `password` | Tạo quản trị viên đầu tiên / đăng nhập / đăng xuất / đổi mật khẩu |
+| GET/POST, PUT/DELETE | `/api/users`, `/api/users/:id` | Quản lý tài khoản (quản trị viên) |
 | GET/POST | `/api/teachers` | Danh sách / thêm giảng viên |
 | PUT/DELETE | `/api/teachers/:id` | Sửa / xoá (409 nếu đang có lịch) |
 | GET/POST | `/api/rooms` | Danh sách / thêm phòng |
@@ -63,9 +77,12 @@ seed/seed.sql       Dữ liệu mẫu
 | GET/POST | `/api/templates` | Danh sách / thêm mẫu lịch |
 | PUT/DELETE | `/api/templates/:id` | Sửa / xoá mẫu lịch |
 | GET | `/api/sessions?from=&to=&teacherId=&roomId=&kind=` | Lịch trong khoảng ngày |
-| POST | `/api/sessions` | Đặt lịch (`repeat_weeks` 1–30), 409 kèm `conflicts` nếu trùng |
+| POST | `/api/sessions` | Đặt lịch (`repeat_weeks` 1–30, `participant_ids`), 409 kèm `conflicts` nếu trùng |
 | PUT | `/api/sessions/:id` | Sửa / huỷ (`status: "cancelled"`) / khôi phục |
 | DELETE | `/api/sessions/:id[?scope=following]` | Xoá buổi / xoá buổi này và các buổi sau trong chuỗi |
+
+Mọi API (trừ `health` và `auth/*`) cần đăng nhập. Xem: mọi tài khoản. Thêm/sửa giảng viên, phòng, mẫu lịch, tài khoản:
+quản trị viên. Lịch: quản trị viên, hoặc giảng viên là người chủ trì.
 
 Buổi đã huỷ không tính là trùng lịch. Hai buổi nối tiếp (buổi trước kết thúc 09:00, buổi sau bắt đầu 09:00) không bị coi là trùng.
 
@@ -74,7 +91,8 @@ Buổi đã huỷ không tính là trùng lịch. Hai buổi nối tiếp (buổ
 ```bash
 npm install
 npm run db:migrate:local      # tạo bảng trong D1 local
-npm run db:seed:local         # (tuỳ chọn) dữ liệu mẫu
+npm run db:seed:local         # (tuỳ chọn) dữ liệu mẫu + tài khoản mẫu:
+                              #   admin / admin12345 (quản trị), an / giangvien123, binh / giangvien123 (giảng viên)
 
 # Cách 1: dev có hot reload – 2 terminal
 npm run dev:api               # Pages Functions + D1 tại :8788
@@ -99,7 +117,19 @@ Kiểm tra: `npm run typecheck`, `npm run lint`, `npm test`.
    - **Hoặc nối Git** trong Cloudflare dashboard → Workers & Pages → Create → Pages → Connect to Git:
      Build command `npm run build`, Build output directory `out`. Cloudflare đọc binding `DB` từ `wrangler.toml`
      (hoặc thêm binding D1 tên `DB` ở Settings → Bindings).
+3. **Mở trang web ngay sau khi deploy** và tạo tài khoản quản trị ở màn hình *Thiết lập lần đầu* (màn hình này chỉ xuất hiện
+   khi chưa có tài khoản nào – ai mở trước sẽ là quản trị viên, nên hãy làm ngay). Sau đó vào trang **Tài khoản** để tạo
+   tài khoản cho từng giảng viên (có nút tạo nhanh cho giảng viên chưa có tài khoản).
 
-> **Bảo mật:** bản này chưa có đăng nhập. Trước khi dùng thật, nên bật
-> [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/applications/configure-apps/self-hosted-public-app/)
-> cho domain Pages để chỉ người được phép mới truy cập được.
+### Bảo mật & tài khoản
+
+- Mật khẩu băm PBKDF2-SHA256 (100.000 vòng); phiên đăng nhập là cookie `HttpOnly`, `SameSite=Lax`, `Secure` (trên HTTPS),
+  hết hạn sau 30 ngày; DB chỉ lưu SHA-256 của token. Request thay đổi dữ liệu từ domain khác bị chặn.
+- Sai mật khẩu 10 lần với cùng tên đăng nhập → khoá đăng nhập tên đó 15 phút. Nên thêm
+  [Rate limiting rule](https://developers.cloudflare.com/waf/rate-limiting-rules/) cho `/api/auth/login` nếu mở ra Internet.
+- Đổi mật khẩu → đăng xuất các thiết bị khác. Quản trị viên đặt lại mật khẩu → người đó bị đăng xuất mọi nơi.
+- **Quên mật khẩu quản trị:**
+  ```bash
+  node scripts/hash-password.mjs 'MatKhauMoi123'
+  npx wrangler d1 execute scheduler-db --remote --command "UPDATE users SET password_hash='<kết quả>' WHERE username='admin'"
+  ```

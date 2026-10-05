@@ -49,7 +49,10 @@ function utcStamp(d: Date): string {
   return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 }
 
-export function buildIcs(sessions: Session[], opts: { calendarName: string; now?: Date; reminderMinutes?: number }): string {
+export function buildIcs(
+  sessions: Session[],
+  opts: { calendarName: string; now?: Date; reminderMinutes?: number; teacherName?: (id: string) => string | undefined },
+): string {
   const stamp = utcStamp(opts.now ?? new Date());
   const lines = [
     "BEGIN:VCALENDAR",
@@ -69,6 +72,8 @@ export function buildIcs(sessions: Session[], opts: { calendarName: string; now?
       `Loại: ${meta.label}`,
       s.teacher_name && `Phụ trách: ${s.teacher_name}`,
       s.class_name && `Lớp: ${s.class_name}`,
+      s.participant_ids?.length &&
+        `Tham dự: ${s.participant_ids.map((id) => opts.teacherName?.(id) ?? id).join(", ")}`,
       s.note,
     ]
       .filter(Boolean)

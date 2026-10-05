@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { Teacher } from "@/shared/types";
 import { api } from "@/lib/api";
 import { addDays, formatDayMonth } from "@/lib/date";
 import { downloadText } from "@/lib/download";
@@ -25,12 +26,14 @@ export function ExportDialog({
   weekStart,
   filters,
   filterLabel,
+  teachers = [],
   onClose,
 }: {
   weekStart: string;
   filters: { teacherId?: string; roomId?: string; kind?: string };
   /** Mô tả bộ lọc đang áp dụng, vd. "TS. Trần Thị Bình" */
   filterLabel: string;
+  teachers?: Teacher[];
   onClose: () => void;
 }) {
   const [weeks, setWeeks] = useState(1);
@@ -49,7 +52,11 @@ export function ExportDialog({
       const name = `Lịch Giảng${filterLabel ? ` – ${filterLabel}` : ""}`;
       downloadText(
         `lich-giang-${weekStart}-den-${to}.ics`,
-        buildIcs(sessions, { calendarName: name, reminderMinutes: reminder || undefined }),
+        buildIcs(sessions, {
+          calendarName: name,
+          reminderMinutes: reminder || undefined,
+          teacherName: (id) => teachers.find((t) => t.id === id)?.name,
+        }),
         "text/calendar;charset=utf-8",
       );
       setDone(sessions.length);

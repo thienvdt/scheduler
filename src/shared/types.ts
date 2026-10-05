@@ -35,6 +35,8 @@ export interface Session {
   status: SessionStatus;
   kind: EventKind;
   created_at: string;
+  /** Người tham dự (ngoài người chủ trì teacher_id) */
+  participant_ids: string[];
   teacher_name?: string;
   teacher_color?: string;
   room_name?: string;
@@ -57,6 +59,7 @@ export interface SessionInput {
   note?: string | null;
   status?: SessionStatus;
   kind?: EventKind;
+  participant_ids?: string[];
   /** Chỉ dùng khi tạo mới: lặp lại hằng tuần trong N tuần (1 = không lặp). */
   repeat_weeks?: number;
 }
@@ -65,6 +68,9 @@ export interface Conflict {
   date: string;
   kind: "teacher" | "room";
   session: Session;
+  /** Với kind = "teacher": người bị trùng lịch (chủ trì hoặc người tham dự) */
+  teacher_id?: string;
+  teacher_name?: string;
 }
 
 export interface ApiError {
@@ -105,3 +111,32 @@ export interface Template {
 }
 
 export type TemplateInput = Omit<Template, "id" | "created_at" | "sort_order"> & { sort_order?: number };
+
+export type Role = "admin" | "teacher";
+
+export interface User {
+  id: string;
+  username: string;
+  display_name: string;
+  role: Role;
+  /** Giảng viên tương ứng (bắt buộc với role teacher để đặt lịch) */
+  teacher_id: string | null;
+  created_at: string;
+}
+
+export interface UserInput {
+  username: string;
+  display_name: string;
+  role: Role;
+  teacher_id?: string | null;
+  /** Bắt buộc khi tạo; khi sửa: bỏ trống = giữ mật khẩu cũ */
+  password?: string;
+}
+
+export interface AuthState {
+  user: User | null;
+  /** Chưa có tài khoản nào – cần tạo quản trị viên đầu tiên */
+  needs_setup: boolean;
+}
+
+export const MIN_PASSWORD_LENGTH = 8;

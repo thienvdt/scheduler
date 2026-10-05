@@ -28,5 +28,7 @@ export function useResource<T>(fetcher: () => Promise<T>, initial: T) {
   }, [fetcher, version]);
 
   const reload = useCallback(() => setVersion((v) => v + 1), []);
-  return { ...state, reload };
+  /** Cập nhật dữ liệu tại chỗ (vd. sau khi kéo thả) mà không tải lại */
+  const mutate = useCallback((fn: (data: T) => T) => setState((s) => ({ ...s, data: fn(s.data) })), []);
+  return { ...state, reload, mutate };
 }
